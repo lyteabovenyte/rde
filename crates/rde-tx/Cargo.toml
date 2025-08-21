@@ -1,0 +1,15 @@
+[package]
+name = "rde-tx"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rde-core = { path = "../rde-core" }
+anyhow = "1"
+tracing = "0.1"
+async-trait = "0.1"
+# Arrow compute kernels for future transforms
+arrow-array = "*"
+arrow-schema = "*"
+arrow-select = "*"
+tokio-util = "0.7.16"
