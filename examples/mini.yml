@@ -1,0 +1,17 @@
+name: mini-csv-to-parquet
+sources:
+  - type: file_csv
+    id: sales_csv
+    path: data/sales_*.csv
+    has_header: true
+    batch_rows: 65536
+transforms:
+  - type: passthrough
+    id: clean
+sinks:
+  - type: parquet_dir
+    id: out
+    path: data/out/
+edges:
+  - [sales_csv, clean]
+  - [clean, out]
