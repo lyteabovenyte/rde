@@ -1,0 +1,8 @@
+[workspace]
+members = [
+"crates/rde-core",
+"crates/rde-io",
+"crates/rde-tx",
+"bins/rde-cli",
+]
+resolver = "2"
