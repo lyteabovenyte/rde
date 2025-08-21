@@ -1,0 +1,18 @@
+[package]
+name = "rde-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rde-core = { path = "../../crates/rde-core" }
+rde-io = { path = "../../crates/rde-io" }
+rde-tx = { path = "../../crates/rde-tx" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+arrow-schema = "56.0.0"
+tokio = "1.47.1"
+tokio-util = "0.7.16"
