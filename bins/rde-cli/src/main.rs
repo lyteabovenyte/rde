@@ -5,10 +5,10 @@ use rde_core::Operator;
 use rde_core::Source; // Bring the trait into scope for CsvSource::schema()
 use rde_core::SourceSpec;
 use rde_core::Transform; // Bring the trait with `run` into scope
-use rde_core::{Message, PipelineSpec};
+use rde_core::PipelineSpec;
 use rde_io::{sink_parquet::ParquetDirSink, sink_stdout::StdoutSink, source_csv::CsvSource};
 use rde_tx::Passthrough;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

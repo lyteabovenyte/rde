@@ -1,12 +1,11 @@
 use anyhow::{Context, Result};
-use arrow_array::RecordBatch;
 use arrow_csv::ReaderBuilder;
 use arrow_schema::{Schema, SchemaRef};
 use async_trait::async_trait;
 use glob::glob;
 use rde_core::CsvSourceSpec;
 use rde_core::{BatchTx, Message, Operator, Source};
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 

@@ -1,9 +1,7 @@
-use arrow_array::RecordBatch;
 use arrow_schema::SchemaRef;
 use async_trait::async_trait;
 use rde_core::{BatchRx, Message, Operator, Sink};
 use tokio_util::sync::CancellationToken;
-use tracing::info;
 pub struct StdoutSink {
     id: String,
     schema: SchemaRef,

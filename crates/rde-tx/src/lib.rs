@@ -1,6 +1,6 @@
 use arrow_schema::SchemaRef;
 use async_trait::async_trait;
-use rde_core::{BatchRx, BatchTx, Message, Operator, Transform};
+use rde_core::{BatchRx, BatchTx, Operator, Transform};
 use tokio_util::sync::CancellationToken;
 pub struct Passthrough {
     id: String,

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use parquet::arrow::arrow_writer::ArrowWriter;
 use parquet::file::properties::WriterProperties;
 use rde_core::{BatchRx, Message, Operator, Sink};
-use std::{fs, path::PathBuf, sync::Arc};
+use std::{fs, path::PathBuf};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 pub struct ParquetDirSink {
