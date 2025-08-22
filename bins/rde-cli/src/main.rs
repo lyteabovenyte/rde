@@ -5,7 +5,7 @@ use rde_core::PipelineSpec;
 use rde_core::SourceSpec;
 use rde_core::Transform; // Bring the trait with `run` into scope
 use glob;
-use rde_io::{sink_parquet::ParquetDirSink, sink_stdout::StdoutSink, source_csv::CsvSource, source_kafka::KafkaPipelineSource};
+use rde_io::{sink_parquet::ParquetDirSink, sink_stdout::StdoutSink, sink_iceberg::IcebergSink, source_csv::CsvSource, source_kafka::KafkaPipelineSource};
 use rde_tx::Passthrough;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,9 +62,10 @@ async fn main() -> Result<()> {
             Arc::new(inferred_schema)
         }
         SourceSpec::Kafka(_) => {
-            // For Kafka, use a simple schema with JSON data
+            // For Kafka, use a schema that matches the JSON structure
             Arc::new(arrow_schema::Schema::new(vec![
-                arrow_schema::Field::new("json_data", arrow_schema::DataType::Utf8, true)
+                arrow_schema::Field::new("id", arrow_schema::DataType::Int64, true),
+                arrow_schema::Field::new("amount", arrow_schema::DataType::Int64, true),
             ]))
         }
     };
@@ -81,6 +82,16 @@ async fn main() -> Result<()> {
             id.clone(),
             PathBuf::from(path),
             schema.clone(),
+        )),
+        rde_core::SinkSpec::Iceberg(iceberg) => Box::new(IcebergSink::new(
+            iceberg.id.clone(),
+            schema.clone(),
+            iceberg.table_name.clone(),
+            iceberg.bucket.clone(),
+            iceberg.endpoint.clone(),
+            iceberg.access_key.clone(),
+            iceberg.secret_key.clone(),
+            iceberg.region.clone(),
         )),
     };
     // Spawn tasks
