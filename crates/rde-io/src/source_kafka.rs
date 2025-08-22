@@ -5,8 +5,8 @@ use rdkafka::message::BorrowedMessage;
 use rdkafka::Message as KafkaMessage;
 
 use anyhow::Result;
-use arrow_array::RecordBatch;
-use arrow_schema::{Schema, SchemaRef};
+use arrow_array::{Int64Array, RecordBatch};
+use arrow_schema::{Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use futures::StreamExt;
 use rde_core::{BatchTx, Message, Operator, Source};
@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
+use tracing::{info, warn};
 
 /// Represents a stream of incoming Kafka messages.
 /// For now, we assume JSON payloads (common in data engineering),
@@ -53,16 +53,22 @@ impl KafkaSource {
         let consumer_task = consumer;
         tokio::spawn(async move {
             let mut stream = consumer_task.stream();
+            info!("Kafka consumer started, waiting for messages...");
             while let Some(result) = stream.next().await {
                 let value = match result {
-                    Ok(m) => parse_message(&m).ok(),
+                    Ok(m) => {
+                        info!("Received Kafka message");
+                        parse_message(&m).ok()
+                    },
                     Err(e) => {
                         warn!("kafka error on consuming message from broker: {:?}", e);
                         None
                     }
                 };
                 if let Some(val) = value {
+                    info!("Parsed JSON message: {:?}", val);
                     if tx.send(val).await.is_err() {
+                        warn!("Failed to send message to channel");
                         break;
                     }
                 }
@@ -109,29 +115,29 @@ impl Operator for KafkaPipelineSource {
 #[async_trait]
 impl Source for KafkaPipelineSource {
     async fn run(&mut self, tx: BatchTx, cancel: CancellationToken) -> Result<()> {
+        info!("Starting Kafka source for topic: {}", self.spec.topic);
         let kafka_source = KafkaSource::new(&self.spec.brokers, &self.spec.group_id, &self.spec.topic);
         let mut stream = kafka_source.stream().await?;
         
         while let Some(value) = stream.next().await {
             if cancel.is_cancelled() {
+                info!("Kafka source cancelled");
                 break;
             }
             
-            // Convert JSON value to a simple RecordBatch
-            // For now, create a single-column batch with the JSON string
-            // TODO
-            let json_str = value.to_string();
-            let array = arrow_array::StringArray::from(vec![json_str]);
-            let batch = RecordBatch::try_new(
-                Arc::new(Schema::new(vec![arrow_schema::Field::new("json_data", arrow_schema::DataType::Utf8, true)])),
-                vec![Arc::new(array)],
-            )?;
-            
-            if tx.send(Message::Batch(batch)).await.is_err() {
-                break;
+            info!("Processing Kafka message in source");
+            // Parse JSON message into structured RecordBatch
+            if let Some(batch) = parse_json_to_batch(&value)? {
+                info!("Created RecordBatch with {} rows", batch.num_rows());
+                if tx.send(Message::Batch(batch)).await.is_err() {
+                    warn!("Failed to send batch to channel");
+                    break;
+                }
+                info!("Successfully sent batch to channel");
             }
         }
         
+        info!("Kafka source finished, sending EOS");
         let _ = tx.send(Message::Eos).await;
         Ok(())
     }
@@ -145,4 +151,35 @@ fn parse_message(m: &BorrowedMessage) -> Result<Value, serde_json::Error> {
     } else {
         Ok(Value::Null)
     }
+}
+
+// helper function to parse JSON value into a RecordBatch
+fn parse_json_to_batch(value: &Value) -> Result<Option<RecordBatch>> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    
+    // Extract fields from JSON
+    // TODO: here we are hardcoding the fields of json, there should be a better way.
+    // kafka messages don't have fixed fields and fixed schema
+    let id = value.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
+    let amount = value.get("amount").and_then(|v| v.as_i64()).unwrap_or(0);
+    
+    // Create arrays for each field
+    let id_array = Int64Array::from(vec![id]);
+    let amount_array = Int64Array::from(vec![amount]);
+    
+    // Create schema
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("id", arrow_schema::DataType::Int64, true),
+        Field::new("amount", arrow_schema::DataType::Int64, true),
+    ]));
+    
+    // Create RecordBatch
+    let batch = RecordBatch::try_new(
+        schema,
+        vec![Arc::new(id_array), Arc::new(amount_array)],
+    )?;
+    
+    Ok(Some(batch))
 }
