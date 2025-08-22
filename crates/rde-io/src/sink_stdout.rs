@@ -2,6 +2,7 @@ use arrow_schema::SchemaRef;
 use async_trait::async_trait;
 use rde_core::{BatchRx, Message, Operator, Sink};
 use tokio_util::sync::CancellationToken;
+use arrow_array::StringArray;
 pub struct StdoutSink {
     id: String,
     schema: SchemaRef,
@@ -28,7 +29,16 @@ impl Sink for StdoutSink {
                 Message::Batch(b) => {
                     // Pretty printing is in arrow’s util; keep minimal here
                     // TODO: Implement pretty printing for batch messages
-                    println!("batch rows={} cols={}", b.num_rows(), b.num_columns());
+                    // Display the actual data content
+                    for row in 0..b.num_rows() {
+                        for col in 0..b.num_columns() {
+                            let array = b.column(col);
+                            if let Some(value) = array.as_any().downcast_ref::<StringArray>() {
+                                let str_val = value.value(row);
+                                println!("{}", str_val);
+                            }
+                        }
+                    }
                 }
                 Message::Watermark(ts) => {
                     println!("watermark={}", ts);

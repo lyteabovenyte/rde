@@ -66,6 +66,14 @@ pub struct CsvSourceSpec {
     pub batch_rows: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KafkaSourceSpec {
+    pub id: String,
+    pub brokers: String,
+    pub group_id: String,
+    pub topic: String,
+}
+
 fn default_batch_rows() -> usize {
     65536
 }
@@ -75,6 +83,8 @@ fn default_batch_rows() -> usize {
 pub enum SourceSpec {
     #[serde(rename = "file_csv")]
     Csv(CsvSourceSpec),
+    #[serde(rename = "kafka")]
+    Kafka(KafkaSourceSpec),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

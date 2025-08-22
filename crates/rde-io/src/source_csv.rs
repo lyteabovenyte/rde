@@ -23,7 +23,7 @@ impl CsvSource {
             spec,
         })
     }
-    
+
     pub fn with_schema(mut self, schema: SchemaRef) -> Self {
         self.schema = schema;
         self

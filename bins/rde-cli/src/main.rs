@@ -2,17 +2,18 @@ use anyhow::Result;
 use arrow_schema::SchemaRef;
 use clap::Parser;
 use rde_core::PipelineSpec;
-use rde_core::Source; // Bring the trait into scope for CsvSource::schema()
 use rde_core::SourceSpec;
 use rde_core::Transform; // Bring the trait with `run` into scope
 use glob;
-use rde_io::{sink_parquet::ParquetDirSink, sink_stdout::StdoutSink, source_csv::CsvSource};
+use rde_io::{sink_parquet::ParquetDirSink, sink_stdout::StdoutSink, source_csv::CsvSource, source_kafka::KafkaPipelineSource};
 use rde_tx::Passthrough;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+
 #[derive(Parser, Debug)]
 struct Args {
     /// Pipeline YAML
@@ -60,11 +61,18 @@ async fn main() -> Result<()> {
             )?;
             Arc::new(inferred_schema)
         }
+        SourceSpec::Kafka(_) => {
+            // For Kafka, use a simple schema with JSON data
+            Arc::new(arrow_schema::Schema::new(vec![
+                arrow_schema::Field::new("json_data", arrow_schema::DataType::Utf8, true)
+            ]))
+        }
     };
     
     // Build source from spec with the inferred schema
-    let mut source = match &spec.sources[0] {
-        SourceSpec::Csv(csv) => CsvSource::try_new(csv.clone())?.with_schema(schema.clone()),
+    let mut source: Box<dyn rde_core::Source> = match &spec.sources[0] {
+        SourceSpec::Csv(csv) => Box::new(CsvSource::try_new(csv.clone())?.with_schema(schema.clone())),
+        SourceSpec::Kafka(kafka) => Box::new(KafkaPipelineSource::new(kafka.clone()).with_schema(schema.clone())),
     };
     let mut t = Passthrough::new("clean".into(), schema.clone());
     let mut sink: Box<dyn rde_core::Sink> = match &spec.sinks[0] {
@@ -85,12 +93,16 @@ async fn main() -> Result<()> {
     let sink_handle = tokio::spawn(async move { sink.run(rx2, c3).await });
     // Ctrl-C handling
     tokio::select! {
-        _ = signal::ctrl_c() => { cancel.cancel(); },
-        _ = &mut tokio::spawn(async {}) => {}
+        _ = signal::ctrl_c() => { 
+            println!("\nReceived Ctrl-C, shutting down...");
+            cancel.cancel(); 
+        },
+        _ = async {
+            // Wait for all tasks to complete
+            let _ = src_handle.await;
+            let _ = tf_handle.await;
+            let _ = sink_handle.await;
+        } => {}
     }
-    // Join
-    src_handle.await??;
-    tf_handle.await??;
-    sink_handle.await??;
     Ok(())
 }

@@ -7,8 +7,7 @@ pub struct Passthrough {
     schema: SchemaRef,
 }
 
-// TODO: add inference for the schema to infer schema from the file
-// instead of just passing through the data, we should implement schema inference
+// no transformation yet -> just passing through
 impl Passthrough {
     pub fn new(id: String, schema: SchemaRef) -> Self {
         Self { id, schema }
