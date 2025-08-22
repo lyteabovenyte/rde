@@ -1,0 +1,16 @@
+name: kafka-to-stdout
+sources:
+  - type: kafka
+    id: sales_kafka
+    brokers: localhost:9092
+    group_id: rde-group
+    topic: sales
+transforms:
+  - type: passthrough
+    id: clean
+sinks:
+  - type: stdout_pretty
+    id: out
+edges:
+  - [sales_kafka, clean]
+  - [clean, out]
