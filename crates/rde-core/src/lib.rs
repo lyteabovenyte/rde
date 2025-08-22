@@ -111,6 +111,46 @@ pub enum TransformSpec {
     // fill later; placeholder for wiring
     #[serde(rename = "passthrough")]
     Passthrough { id: String },
+    #[serde(rename = "schema_evolution")]
+    SchemaEvolution { 
+        id: String,
+        #[serde(default)]
+        auto_infer: bool,
+        #[serde(default)]
+        strict_mode: bool,
+    },
+    #[serde(rename = "json_flatten")]
+    JsonFlatten { 
+        id: String,
+        #[serde(default)]
+        separator: String,
+        #[serde(default)]
+        max_depth: usize,
+    },
+    #[serde(rename = "partition")]
+    Partition { 
+        id: String,
+        partition_by: Vec<String>,
+        #[serde(default)]
+        partition_format: String,
+    },
+    #[serde(rename = "sql_transform")]
+    SqlTransform { 
+        id: String,
+        query: String,
+        #[serde(default)]
+        window_size: usize,
+    },
+    #[serde(rename = "clean_data")]
+    CleanData { 
+        id: String,
+        #[serde(default)]
+        remove_nulls: bool,
+        #[serde(default)]
+        trim_strings: bool,
+        #[serde(default)]
+        normalize_case: Option<String>, // "lower", "upper", "title"
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

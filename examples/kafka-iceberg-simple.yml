@@ -1,0 +1,27 @@
+name: kafka-to-iceberg-simple
+sources:
+  - type: kafka
+    id: kafka-source
+    brokers: localhost:9092
+    group_id: rde-group-simple
+    topic: sales
+    schema:
+      auto_infer: true
+
+transforms:
+  - type: passthrough
+    id: passthrough
+
+sinks:
+  - type: iceberg
+    id: iceberg-sink
+    table_name: sales_simple
+    bucket: iceberg-bucket
+    endpoint: http://localhost:9000
+    access_key: minioadmin
+    secret_key: minioadmin
+    region: us-east-1
+
+edges:
+  - [kafka-source, passthrough]
+  - [passthrough, iceberg-sink]

@@ -1,0 +1,69 @@
+name: kafka-to-iceberg-with-transforms
+sources:
+  - type: kafka
+    id: kafka-source
+    brokers: localhost:9092
+    group_id: rde-group-iceberg-transforms
+    topic: sales
+    schema:
+      auto_infer: true
+
+transforms:
+  # Schema evolution to handle dynamic JSON schema changes
+  - type: schema_evolution
+    id: schema-evolution
+    auto_infer: true
+    strict_mode: false
+  
+  # Flatten nested JSON structures into relational format
+  - type: json_flatten
+    id: json-flatten
+    separator: "_"
+    max_depth: 3
+  
+  # Clean and normalize the data
+  - type: clean_data
+    id: data-cleaner
+    remove_nulls: false
+    trim_strings: true
+    normalize_case: "lower"
+  
+  # Add partitioning columns for downstream analytics
+  - type: partition
+    id: partitioner
+    partition_by: ["region", "category"]
+    partition_format: "region={0}/category={1}"
+  
+  # Apply SQL transformations for business logic
+  - type: sql_transform
+    id: business-logic
+    query: |
+      SELECT 
+        *,
+        CASE 
+          WHEN amount > 1000 THEN 'high_value'
+          WHEN amount > 500 THEN 'medium_value'
+          ELSE 'low_value'
+        END as value_tier,
+        amount * 0.1 as commission
+      FROM input_data
+      WHERE amount > 0
+    window_size: 100
+
+sinks:
+  - type: iceberg
+    id: iceberg-sink
+    table_name: sales_processed
+    bucket: iceberg-bucket
+    endpoint: http://localhost:9000
+    access_key: minioadmin
+    secret_key: minioadmin
+    region: us-east-1
+
+edges:
+  - [kafka-source, schema-evolution]
+  - [schema-evolution, json-flatten]
+  - [json-flatten, data-cleaner]
+  - [data-cleaner, partitioner]
+  - [partitioner, business-logic]
+  - [business-logic, iceberg-sink]

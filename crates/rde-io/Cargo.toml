@@ -10,11 +10,11 @@ tracing = "0.1"
 async-trait = "0.1"
 glob = "0.3"
 # Arrow I/O
-arrow-array = "53.0"
-arrow-schema = "53.0"
-arrow-buffer = "53.0"
-arrow-csv = "53.0"
-parquet = "53.0"
+arrow-array = "55.0"
+arrow-schema = "55.0"
+arrow-buffer = "55.0"
+arrow-csv = "55.0"
+parquet = "55.0"
 # Object storage abstraction (local for now, S3/GCS later)
 object_store = { version = "0.9", default-features = false, features = ["aws","gcp","azure","http"] }
 # UUID for file naming

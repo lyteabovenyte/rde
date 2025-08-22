@@ -1,0 +1,50 @@
+name: sql-transformation-pipeline
+sources:
+  - type: kafka
+    id: kafka-source
+    brokers: localhost:9092
+    group_id: rde-group-sql-transform
+    topic: user-events
+    schema:
+      auto_infer: true
+
+transforms:
+  # Apply SQL transformations for user behavior analysis
+  - type: sql_transform
+    id: user-analytics
+    query: |
+      SELECT 
+        user_id,
+        event_type,
+        timestamp,
+        COUNT(*) OVER (PARTITION BY user_id ORDER BY timestamp ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as event_count_7min,
+        AVG(amount) OVER (PARTITION BY user_id ORDER BY timestamp ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as avg_amount_7min,
+        CASE 
+          WHEN event_type = 'purchase' THEN 'conversion'
+          WHEN event_type = 'view' THEN 'engagement'
+          ELSE 'other'
+        END as event_category
+      FROM input_data
+      WHERE user_id IS NOT NULL
+    window_size: 50
+  
+  # Add time-based partitioning
+  - type: partition
+    id: time-partition
+    partition_by: ["event_category"]
+    partition_format: "category={0}"
+
+sinks:
+  - type: iceberg
+    id: iceberg-sink
+    table_name: user_analytics
+    bucket: iceberg-bucket
+    endpoint: http://localhost:9000
+    access_key: minioadmin
+    secret_key: minioadmin
+    region: us-east-1
+
+edges:
+  - [kafka-source, user-analytics]
+  - [user-analytics, time-partition]
+  - [time-partition, iceberg-sink]
