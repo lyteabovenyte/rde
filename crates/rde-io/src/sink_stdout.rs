@@ -27,6 +27,7 @@ impl Sink for StdoutSink {
             match msg {
                 Message::Batch(b) => {
                     // Pretty printing is in arrow’s util; keep minimal here
+                    // TODO: Implement pretty printing for batch messages
                     println!("batch rows={} cols={}", b.num_rows(), b.num_columns());
                 }
                 Message::Watermark(ts) => {

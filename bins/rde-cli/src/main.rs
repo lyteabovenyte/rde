@@ -1,14 +1,15 @@
 use anyhow::Result;
 use arrow_schema::SchemaRef;
 use clap::Parser;
-use rde_core::Operator;
+use rde_core::PipelineSpec;
 use rde_core::Source; // Bring the trait into scope for CsvSource::schema()
 use rde_core::SourceSpec;
 use rde_core::Transform; // Bring the trait with `run` into scope
-use rde_core::PipelineSpec;
+use glob;
 use rde_io::{sink_parquet::ParquetDirSink, sink_stdout::StdoutSink, source_csv::CsvSource};
 use rde_tx::Passthrough;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -27,21 +28,44 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer())
         .init();
+
     let args = Args::parse();
     let spec: PipelineSpec = {
         let y = std::fs::read_to_string(&args.pipeline)?;
         serde_yaml::from_str(&y)?
     };
-    // v0: assume single source -> passthrough -> single sink
+
+    // v0: assume single source -> passthrough(empty schema) -> single sink
     let cancel = CancellationToken::new();
     let (tx1, rx1) = mpsc::channel(args.channel_capacity);
     let (tx2, rx2) = mpsc::channel(args.channel_capacity);
-    // Build source from spec
-    let mut source = match &spec.sources[0] {
-        SourceSpec::Csv(csv) => CsvSource::try_new(csv.clone())?,
+
+    // Infer schema upfront so we can pass it to transform and sink
+    let schema: SchemaRef = match &spec.sources[0] {
+        SourceSpec::Csv(csv) => {
+            // Resolve glob pattern to get actual file paths
+            let mut paths: Vec<String> = vec![];
+            for entry in glob::glob(&csv.path)? {
+                paths.push(entry?.display().to_string());
+            }
+            if paths.is_empty() {
+                anyhow::bail!("no files matched: {}", csv.path);
+            }
+            
+            let inferred_schema = arrow_csv::reader::infer_schema_from_files(
+                &paths,
+                b',',
+                Some(100),
+                csv.has_header,
+            )?;
+            Arc::new(inferred_schema)
+        }
     };
-    // For now, get schema from source lazily; pass empty schema to operators
-    let schema: SchemaRef = source.schema();
+    
+    // Build source from spec with the inferred schema
+    let mut source = match &spec.sources[0] {
+        SourceSpec::Csv(csv) => CsvSource::try_new(csv.clone())?.with_schema(schema.clone()),
+    };
     let mut t = Passthrough::new("clean".into(), schema.clone());
     let mut sink: Box<dyn rde_core::Sink> = match &spec.sinks[0] {
         rde_core::SinkSpec::Stdout { id } => Box::new(StdoutSink::new(id.clone(), schema.clone())),
@@ -55,15 +79,14 @@ async fn main() -> Result<()> {
     let c1 = cancel.child_token();
     let src_handle = tokio::spawn(async move { source.run(tx1, c1).await });
     let c2 = cancel.child_token();
+    // run method on t (Passthrough) does not infers the schema -> so parquet file would be empty for now
     let tf_handle = tokio::spawn(async move { t.run(rx1, tx2, c2).await });
     let c3 = cancel.child_token();
     let sink_handle = tokio::spawn(async move { sink.run(rx2, c3).await });
     // Ctrl-C handling
     tokio::select! {
-    _
-    = signal::ctrl_c() => { cancel.cancel(); },
-    _
-    = &mut tokio::spawn(async {}) => {}
+        _ = signal::ctrl_c() => { cancel.cancel(); },
+        _ = &mut tokio::spawn(async {}) => {}
     }
     // Join
     src_handle.await??;

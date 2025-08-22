@@ -10,19 +10,23 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 pub struct CsvSource {
-    id: String,
-    schema: SchemaRef,
-    spec: CsvSourceSpec,
+    pub id: String,
+    pub schema: SchemaRef,
+    pub spec: CsvSourceSpec,
 }
 
 impl CsvSource {
     pub fn try_new(spec: CsvSourceSpec) -> Result<Self> {
-        // For v0 we keep schema empty, infer from first file in run()
         Ok(Self {
             id: spec.id.clone(),
             schema: Arc::new(Schema::empty()),
             spec,
         })
+    }
+    
+    pub fn with_schema(mut self, schema: SchemaRef) -> Self {
+        self.schema = schema;
+        self
     }
 }
 
@@ -57,19 +61,14 @@ impl Source for CsvSource {
 
             let file = std::fs::File::open(&p).with_context(|| format!("open {}", p))?;
 
-            // Infer schema on first file
-            if i == 0 && self.schema.fields().is_empty() {
-                let inferred = arrow_csv::reader::infer_schema_from_files(
-                    &[p.clone()],
-                    b',',      // default delimiter
-                    Some(100), // number of rows to sample for inference
-                    self.spec.has_header,
-                )?;
-                self.schema = Arc::new(inferred);
+            // Use the schema that was already inferred in main.rs
+            if i == 0 {
+                info!("Using schema: {:?}", self.schema);
             }
 
             let mut reader = ReaderBuilder::new(self.schema.clone())
                 .with_batch_size(self.spec.batch_rows)
+                .with_header(self.spec.has_header)
                 .build(file)?; // requires schema
 
             loop {

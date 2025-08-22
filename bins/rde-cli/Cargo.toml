@@ -14,5 +14,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 arrow-schema = "56.0.0"
+glob = "0.3"
 tokio = "1.47.1"
 tokio-util = "0.7.16"
+arrow-csv = "56.0.0"

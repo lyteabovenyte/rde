@@ -6,11 +6,15 @@ pub struct Passthrough {
     id: String,
     schema: SchemaRef,
 }
+
+// TODO: add inference for the schema to infer schema from the file
+// instead of just passing through the data, we should implement schema inference
 impl Passthrough {
     pub fn new(id: String, schema: SchemaRef) -> Self {
         Self { id, schema }
     }
 }
+
 #[async_trait]
 impl Operator for Passthrough {
     fn name(&self) -> &str {
@@ -29,7 +33,7 @@ impl Transform for Passthrough {
         _cancel: CancellationToken,
     ) -> anyhow::Result<()> {
         while let Some(msg) = rx.recv().await {
-            tx.send(msg).await.ok();
+            tx.send(msg).await.ok(); // just sending through
         }
         Ok(())
     }

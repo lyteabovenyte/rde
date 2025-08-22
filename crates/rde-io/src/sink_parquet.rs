@@ -44,7 +44,7 @@ impl Sink for ParquetDirSink {
                 Message::Eos => break,
             }
         }
-        writer.close()?;
+        writer.close()?; // to ensure that all data is flushed to disk
         Ok(())
     }
 }

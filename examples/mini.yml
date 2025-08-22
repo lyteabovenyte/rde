@@ -4,7 +4,7 @@ sources:
     id: sales_csv
     path: data/sales_*.csv
     has_header: true
-    batch_rows: 65536
+    batch_rows: 3
 transforms:
   - type: passthrough
     id: clean
