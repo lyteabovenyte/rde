@@ -215,7 +215,7 @@ Cargo.lock
 **/*.rs.bk
 .DS_Store
 data/.DS_Store
-ICEBERG_SINK_IMPLEMENTATION.md
+notes/
 # MSVC Windows builds of rustc generate these, which store debugging information
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,python,data,database,redis

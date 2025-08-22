@@ -72,6 +72,24 @@ pub struct KafkaSourceSpec {
     pub brokers: String,
     pub group_id: String,
     pub topic: String,
+    #[serde(default)]
+    pub schema: Option<SchemaConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaConfig {
+    #[serde(default)]
+    pub fields: Vec<FieldConfig>,
+    #[serde(default)]
+    pub auto_infer: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldConfig {
+    pub name: String,
+    pub data_type: String, // "int64", "float64", "string", "boolean"
+    #[serde(default)]
+    pub nullable: bool,
 }
 
 fn default_batch_rows() -> usize {
