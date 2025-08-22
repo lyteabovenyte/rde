@@ -96,10 +96,23 @@ pub enum TransformSpec {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IcebergSinkSpec {
+    pub id: String,
+    pub table_name: String,
+    pub bucket: String,
+    pub endpoint: String,
+    pub access_key: String,
+    pub secret_key: String,
+    pub region: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum SinkSpec {
     #[serde(rename = "stdout_pretty")]
     Stdout { id: String },
     #[serde(rename = "parquet_dir")]
     ParquetDir { id: String, path: String },
+    #[serde(rename = "iceberg")]
+    Iceberg(IcebergSinkSpec),
 }
