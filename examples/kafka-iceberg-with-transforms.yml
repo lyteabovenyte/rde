@@ -48,7 +48,7 @@ transforms:
         amount * 0.1 as commission
       FROM input_data
       WHERE amount > 0
-    window_size: 100
+    window_size: 1
 
 sinks:
   - type: iceberg
