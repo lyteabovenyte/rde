@@ -73,6 +73,7 @@ async fn main() -> Result<()> {
         SourceSpec::Kafka(_) => {
             // For Kafka, use a schema that matches the JSON structure
             Arc::new(arrow_schema::Schema::new(vec![
+                // TODO: this is hardcoded schema layout, we should infer schema on the fly
                 arrow_schema::Field::new("id", arrow_schema::DataType::Int64, true),
                 arrow_schema::Field::new("amount", arrow_schema::DataType::Int64, true),
             ]))
@@ -137,7 +138,7 @@ async fn main() -> Result<()> {
         });
         handles.push(sink_handle);
     } else {
-        // Complex case: source -> transforms -> sink
+        // desired case: source -> transforms -> sink
         // For now, skip transforms and connect source directly to sink
         // TODO: Fix the channel allocation for multi-transform pipelines
         

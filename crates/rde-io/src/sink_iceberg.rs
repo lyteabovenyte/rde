@@ -144,6 +144,7 @@ impl Sink for IcebergSink {
 
                     info!("Iceberg sink: Writing parquet file: {}", file_name);
                     // Write parquet file to MinIO
+                    // TODO: here we should create Iceberg metadata (manifest files, table metadata)
                     let file_size = self.write_parquet_file(&batch, &file_path).await?;
                     data_files.push(file_path.clone());
                     
@@ -151,7 +152,7 @@ impl Sink for IcebergSink {
                 }
                 Message::Watermark(_) => {
                     info!("Iceberg sink: Received watermark");
-                    // Could trigger a commit here
+                    // TODO: Could trigger a commit here
                 }
                 Message::Eos => {
                     info!("Iceberg sink: End of stream, wrote {} data files", data_files.len());
@@ -160,7 +161,7 @@ impl Sink for IcebergSink {
             }
         }
 
-        // TODO: Create Iceberg metadata (manifest files, table metadata)
+        // TODO: Create Iceberg metadata (manifest files, table metadata), full Iceberg functionality
         // For now, we're just writing Parquet files to MinIO
         info!("Successfully wrote {} parquet files to MinIO bucket: {}", 
               data_files.len(), self.bucket);

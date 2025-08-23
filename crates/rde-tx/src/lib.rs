@@ -202,6 +202,7 @@ impl SchemaEvolution {
     fn batch_to_json(&self, batch: &RecordBatch) -> anyhow::Result<Vec<Value>> {
         // Convert Arrow batch to JSON for schema inference
         // This is a simplified implementation
+        // TODO: check with schema registry for desired schema and infer which table and partition the data is for based on schema
         let mut json_data = Vec::new();
         for row_idx in 0..batch.num_rows() {
             let mut row = serde_json::Map::new();
@@ -816,7 +817,7 @@ impl CleanData {
 // Factory function to create transforms based on configuration
 pub fn create_transform(
     spec: &rde_core::TransformSpec,
-    input_schema: SchemaRef,
+    input_schema: SchemaRef, // note that schema is sent up-front, it is inferred in main function
 ) -> anyhow::Result<Box<dyn Transform + Send>> {
     match spec {
         rde_core::TransformSpec::Passthrough { id } => {

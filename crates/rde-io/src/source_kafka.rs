@@ -21,6 +21,7 @@ use tracing::{info, warn};
 /// Represents a stream of incoming Kafka messages.
 /// For now, we assume JSON payloads (common in data engineering),
 /// but this can be generic over Avro/Protobuf/etc.
+// TODO: make this generic over payload
 pub struct KafkaSource {
     pub brokers: String,
     pub group_id: String,
@@ -59,6 +60,7 @@ impl KafkaSource {
                 let value = match result {
                     Ok(m) => {
                         info!("Received Kafka message");
+                        // TODO: parse_message or parse_json_to_batch_dynamic for dynamic schema evaluation
                         parse_message(&m).ok()
                     },
                     Err(e) => {
@@ -141,7 +143,8 @@ impl DynamicSchemaManager {
     /// Infer Arrow data type from JSON value
     fn infer_field_type(&self, value: &Value) -> DataType {
         match value {
-            Value::Null => DataType::Utf8, // Treat null as string for flexibility
+            // TODO: for now Treat null as string for flexibility, but should we clean null fields in data pipeline process?
+            Value::Null => DataType::Utf8, 
             Value::Bool(_) => DataType::Boolean,
             Value::Number(n) => {
                 if n.is_i64() {
@@ -170,6 +173,7 @@ impl DynamicSchemaManager {
     }
 
     /// Check if schema has changed and update if necessary
+    // TODO: should we also have a schema registry to just allow some certain number of valid schema?
     pub fn update_schema_if_needed(&mut self, value: &Value) -> bool {
         if !self.auto_infer {
             // If auto-infer is disabled, use configured schema
@@ -180,6 +184,7 @@ impl DynamicSchemaManager {
             return false;
         }
 
+        // TODO: for schema registry, here we should check that new schema is valiadated by schema registry
         let new_schema = self.infer_schema(value);
         
         if let Some(current) = &self.current_schema {
@@ -304,8 +309,7 @@ impl Source for KafkaPipelineSource {
     }
 }
 
-// helper function to parse payload as JSON
-// TODO: add transformation logic for the messages
+// Simple Json parser for messages
 fn parse_message(m: &BorrowedMessage) -> Result<Value, serde_json::Error> {
     if let Some(payload) = m.payload() {
         serde_json::from_slice(payload)
@@ -320,6 +324,7 @@ fn parse_json_to_batch_dynamic(value: &Value, schema_manager: &DynamicSchemaMana
         return Ok(None);
     }
     
+    // TODO: maybe we should check with schema registry here
     let schema = schema_manager.get_current_schema()
         .ok_or_else(|| anyhow::anyhow!("No schema available"))?;
     
