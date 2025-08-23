@@ -138,26 +138,41 @@ async fn main() -> Result<()> {
         });
         handles.push(sink_handle);
     } else {
-        // desired case: source -> transforms -> sink
-        // For now, skip transforms and connect source directly to sink
-        // TODO: Fix the channel allocation for multi-transform pipelines
+        // Multi-transform case: source -> transform1 -> transform2 -> ... -> sink
         
-        println!("Warning: Transforms are being skipped in multi-transform pipeline");
-        println!("Connecting source directly to sink for testing");
-        
-        let (source_tx, sink_rx) = channels.remove(0);
-        
-        // Source task
-        let c1 = cancel.child_token();
+        // Source task: source -> transform1
+        let (source_tx, transform1_rx) = channels.remove(0);
+        let c_source = cancel.child_token();
         let src_handle = tokio::spawn(async move { 
-            source.run(source_tx, c1).await 
+            source.run(source_tx, c_source).await 
         });
         handles.push(src_handle);
 
-        // Sink task
+        // Transform tasks: transform1 -> transform2 -> ... -> transformN
+        let mut current_rx = transform1_rx;
+        let num_transforms = transforms.len();
+        for (i, mut transform) in transforms.into_iter().enumerate() {
+            let (transform_tx, next_rx) = if i == num_transforms - 1 {
+                // Last transform: transformN -> sink
+                channels.remove(0)
+            } else {
+                // Intermediate transform: transformN -> transformN+1
+                channels.remove(0)
+            };
+            
+            let c_transform = cancel.child_token();
+            let transform_handle = tokio::spawn(async move { 
+                transform.run(current_rx, transform_tx, c_transform).await 
+            });
+            handles.push(transform_handle);
+            
+            current_rx = next_rx;
+        }
+
+        // Sink task: transformN -> sink
         let c_sink = cancel.child_token();
         let sink_handle = tokio::spawn(async move { 
-            sink.run(sink_rx, c_sink).await 
+            sink.run(current_rx, c_sink).await 
         });
         handles.push(sink_handle);
     }
