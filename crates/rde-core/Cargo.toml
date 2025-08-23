@@ -19,8 +19,5 @@ petgraph = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1"
-# Arrow core types
-arrow-array = "55.0"
-arrow-schema = "55.0"
-arrow-buffer = "55.0"
-arrow-select = "55.0"
+# DataFusion for Arrow re-exports
+datafusion = "49.0"

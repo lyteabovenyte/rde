@@ -5,7 +5,7 @@ A high-performance, real-time data engineering pipeline built in Rust using Apac
 ## Features
 
 ### Sources
-- **Kafka**: Real-time streaming from Kafka topics with JSON schema inference
+- **Kafka**: Real-time streaming from Kafka topics with JSON schema inference and **topic-to-table mapping**
 - **CSV**: Batch processing from CSV files with automatic schema detection
 
 ### Transforms
@@ -20,6 +20,56 @@ A high-performance, real-time data engineering pipeline built in Rust using Apac
 - **Iceberg**: Write to Apache Iceberg tables in MinIO/S3 with Parquet format
 - **Parquet Directory**: Write partitioned Parquet files to local filesystem
 - **Stdout**: Pretty-print data for debugging and development
+
+## 🚀 New: Topic-to-Table Mapping
+
+RDE now supports **topic-to-table mapping** that links Kafka topics directly to Iceberg tables with automatic schema evolution and topic-specific transformations:
+
+### Key Benefits:
+1. **Automatic Schema Evolution**: When new fields are detected in Kafka messages, the Iceberg table schema is automatically updated without overwriting existing data
+2. **Topic-Specific Transformations**: Each topic can have its own SQL transformation logic using DataFusion
+3. **Direct Mapping**: No need for separate sink configurations - the mapping handles everything
+4. **Schema Consistency**: Ensures the Kafka message schema matches the Iceberg table schema
+
+### Example Configuration:
+
+```yaml
+sources:
+  - type: kafka
+    id: "user-events-source"
+    brokers: "localhost:9092"
+    group_id: "rde-user-events-group"
+    topic: "user-events"
+    topic_mapping:
+      iceberg_table: "user_events"
+      bucket: "iceberg-data"
+      endpoint: "http://localhost:9000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+      auto_schema_evolution: true
+      sql_transform: |
+        SELECT 
+          user_id,
+          event_type,
+          timestamp,
+          CASE 
+            WHEN event_type = 'purchase' THEN amount
+            ELSE 0 
+          END as purchase_amount,
+          metadata->>'page' as page_url
+        FROM input_data
+        WHERE user_id IS NOT NULL
+      partition_by: ["event_type", "date(timestamp)"]
+```
+
+### How It Works:
+
+1. **Schema Loading**: On startup, RDE loads the existing schema from the mapped Iceberg table
+2. **Message Processing**: Each Kafka message is parsed and compared against the current schema
+3. **Schema Evolution**: If new fields are detected, the Iceberg table schema is automatically updated
+4. **SQL Transformation**: The topic-specific SQL query is applied to transform the data
+5. **Data Writing**: Transformed data is written to the mapped Iceberg table
 
 ## Quick Start
 
@@ -49,7 +99,12 @@ scripts/start-minio.sh
 cargo run --bin rde-cli -- -p examples/kafka-iceberg.yml
 ```
 
-3. **Run with advanced transformations:**
+3. **Run with topic mapping (recommended):**
+```bash
+cargo run --bin rde-cli -- -p examples/kafka-iceberg-topic-mapping.yml
+```
+
+4. **Run with advanced transformations:**
 ```bash
 cargo run --bin rde-cli -- -p examples/kafka-iceberg-with-transforms.yml
 ```
@@ -68,59 +123,21 @@ sources:
     brokers: localhost:9092
     group_id: my-group
     topic: my-topic
-    schema:
-      auto_infer: true
-
-transforms:
-  - type: schema_evolution
-    id: schema-evolution
-    auto_infer: true
-    strict_mode: false
-  
-  - type: json_flatten
-    id: flatten
-    separator: "_"
-    max_depth: 3
-  
-  - type: clean_data
-    id: cleaner
-    trim_strings: true
-    normalize_case: "lower"
-  
-  - type: partition
-    id: partitioner
-    partition_by: ["region", "category"]
-    partition_format: "region={0}/category={1}"
-  
-  - type: sql_transform
-    id: business-logic
-    query: |
-      SELECT 
-        *,
-        CASE 
+    topic_mapping:
+      iceberg_table: "my_table"
+      bucket: "my-bucket"
+      endpoint: "http://localhost:9000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+      auto_schema_evolution: true
+      sql_transform: |
+        SELECT 
+          *,
+          CASE 
           WHEN amount > 1000 THEN 'high_value'
           ELSE 'low_value'
         END as value_tier
-      FROM input_data
-    window_size: 100
-
-sinks:
-  - type: iceberg
-    id: iceberg-sink
-    table_name: my_table
-    bucket: my-bucket
-    endpoint: http://localhost:9000
-    access_key: minioadmin
-    secret_key: minioadmin
-    region: us-east-1
-
-edges:
-  - [kafka-source, schema-evolution]
-  - [schema-evolution, flatten]
-  - [flatten, cleaner]
-  - [cleaner, partitioner]
-  - [partitioner, business-logic]
-  - [business-logic, iceberg-sink]
 ```
 
 ### Transform Types

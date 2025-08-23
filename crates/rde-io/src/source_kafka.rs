@@ -5,8 +5,8 @@ use rdkafka::message::BorrowedMessage;
 use rdkafka::Message as KafkaMessage;
 
 use anyhow::Result;
-use arrow_array::{ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, RecordBatch};
-use arrow_schema::{Field, Schema, SchemaRef, DataType};
+use datafusion::arrow::array::{ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, RecordBatch};
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef, DataType};
 use async_trait::async_trait;
 use futures::StreamExt;
 use rde_core::{BatchTx, Message, Operator, Source};
@@ -17,6 +17,8 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
+
+use crate::topic_mapping::TopicMappingManager;
 
 /// Represents a stream of incoming Kafka messages.
 /// For now, we assume JSON payloads (common in data engineering),
@@ -173,7 +175,6 @@ impl DynamicSchemaManager {
     }
 
     /// Check if schema has changed and update if necessary
-    // TODO: should we also have a schema registry to just allow some certain number of valid schema?
     pub fn update_schema_if_needed(&mut self, value: &Value) -> bool {
         if !self.auto_infer {
             // If auto-infer is disabled, use configured schema
@@ -184,7 +185,6 @@ impl DynamicSchemaManager {
             return false;
         }
 
-        // TODO: for schema registry, here we should check that new schema is valiadated by schema registry
         let new_schema = self.infer_schema(value);
         
         if let Some(current) = &self.current_schema {
@@ -242,22 +242,42 @@ pub struct KafkaPipelineSource {
     pub schema: SchemaRef,
     pub spec: rde_core::KafkaSourceSpec,
     pub schema_manager: DynamicSchemaManager,
+    pub topic_mapping: Option<TopicMappingManager>,
 }
 
 impl KafkaPipelineSource {
     pub fn new(spec: rde_core::KafkaSourceSpec) -> Self {
         let schema_manager = DynamicSchemaManager::new().with_config(&spec.schema);
+        let topic_mapping = spec.topic_mapping.as_ref().map(|mapping| {
+            TopicMappingManager::new(mapping.clone())
+        });
+        
         Self {
             id: spec.id.clone(),
             schema: Arc::new(Schema::empty()), // Will be dynamically inferred
             spec,
             schema_manager,
+            topic_mapping,
         }
     }
     
     pub fn with_schema(mut self, schema: SchemaRef) -> Self {
         self.schema = schema;
         self
+    }
+    
+    /// Initialize the topic mapping if configured
+    pub async fn initialize_topic_mapping(&mut self) -> Result<()> {
+        if let Some(mapping) = &mut self.topic_mapping {
+            mapping.initialize().await?;
+            
+            // Update schema manager with the mapped table schema
+            if let Some(table_schema) = mapping.get_current_schema() {
+                self.schema_manager.current_schema = Some(table_schema);
+                info!("Initialized schema from mapped Iceberg table");
+            }
+        }
+        Ok(())
     }
 }
 
@@ -278,6 +298,10 @@ impl Operator for KafkaPipelineSource {
 impl Source for KafkaPipelineSource {
     async fn run(&mut self, tx: BatchTx, cancel: CancellationToken) -> Result<()> {
         info!("Starting Kafka source for topic: {}", self.spec.topic);
+        
+        // Initialize topic mapping if configured
+        self.initialize_topic_mapping().await?;
+        
         let kafka_source = KafkaSource::new(&self.spec.brokers, &self.spec.group_id, &self.spec.topic);
         let mut stream = kafka_source.stream().await?;
         
@@ -295,7 +319,27 @@ impl Source for KafkaPipelineSource {
             // Parse JSON message into structured RecordBatch
             if let Some(batch) = parse_json_to_batch_dynamic(&value, &self.schema_manager)? {
                 info!("Created RecordBatch with {} rows", batch.num_rows());
-                if tx.send(Message::Batch(batch)).await.is_err() {
+                
+                // Apply topic-specific SQL transformation if configured
+                let transformed_batch = if let Some(mapping) = &self.topic_mapping {
+                    if let Some(transformed) = mapping.apply_sql_transform(batch).await? {
+                        transformed
+                    } else {
+                        continue; // Skip this batch if SQL transform filtered it out
+                    }
+                } else {
+                    batch
+                };
+                
+                // Check for schema evolution if topic mapping is configured
+                if let Some(mapping) = &mut self.topic_mapping {
+                    let schema_evolved = mapping.evolve_schema_if_needed(&transformed_batch.schema()).await?;
+                    if schema_evolved {
+                        info!("Schema evolved for topic: {}", self.spec.topic);
+                    }
+                }
+                
+                if tx.send(Message::Batch(transformed_batch)).await.is_err() {
                     warn!("Failed to send batch to channel");
                     break;
                 }
@@ -324,7 +368,6 @@ fn parse_json_to_batch_dynamic(value: &Value, schema_manager: &DynamicSchemaMana
         return Ok(None);
     }
     
-    // TODO: maybe we should check with schema registry here
     let schema = schema_manager.get_current_schema()
         .ok_or_else(|| anyhow::anyhow!("No schema available"))?;
     
@@ -379,9 +422,7 @@ fn parse_json_to_batch(value: &Value) -> Result<Option<RecordBatch>> {
         return Ok(None);
     }
     
-    // Extract fields from JSON
-    // TODO: here we are hardcoding the fields of json, there should be a better way.
-    // kafka messages don't have fixed fields and fixed schema
+    // Extract fields from JSON (legacy hardcoded approach - deprecated)
     let id = value.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
     let amount = value.get("amount").and_then(|v| v.as_i64()).unwrap_or(0);
     
@@ -391,8 +432,8 @@ fn parse_json_to_batch(value: &Value) -> Result<Option<RecordBatch>> {
     
     // Create schema
     let schema = Arc::new(Schema::new(vec![
-        Field::new("id", arrow_schema::DataType::Int64, true),
-        Field::new("amount", arrow_schema::DataType::Int64, true),
+        Field::new("id", datafusion::arrow::datatypes::DataType::Int64, true),
+        Field::new("amount", datafusion::arrow::datatypes::DataType::Int64, true),
     ]));
     
     // Create RecordBatch

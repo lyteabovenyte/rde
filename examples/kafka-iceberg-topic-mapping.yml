@@ -1,0 +1,54 @@
+name: "kafka-to-iceberg-with-topic-mapping"
+sources:
+  - type: kafka
+    id: "user-events-source"
+    brokers: "localhost:9092"
+    group_id: "rde-user-events-group"
+    topic: "user-events"
+    topic_mapping:
+      iceberg_table: "user_events"
+      bucket: "iceberg-data"
+      endpoint: "http://localhost:9000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+      auto_schema_evolution: true
+      sql_transform: |
+        SELECT 
+          user_id,
+          event_type,
+          timestamp,
+          CASE 
+            WHEN event_type = 'purchase' THEN amount
+            ELSE 0 
+          END as purchase_amount,
+          CASE 
+            WHEN event_type = 'view' THEN 1
+            ELSE 0 
+          END as view_count,
+          metadata->>'page' as page_url,
+          metadata->>'category' as product_category
+        FROM input_data
+        WHERE user_id IS NOT NULL
+      partition_by: ["event_type", "date(timestamp)"]
+
+transforms:
+  - type: clean_data
+    id: "clean-user-events"
+    remove_nulls: true
+    trim_strings: true
+    normalize_case: "lower"
+
+sinks:
+  - type: iceberg
+    id: "user-events-sink"
+    table_name: "user_events"
+    bucket: "iceberg-data"
+    endpoint: "http://localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    region: "us-east-1"
+
+edges:
+  - ["user-events-source", "clean-user-events"]
+  - ["clean-user-events", "user-events-sink"]

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use arrow_csv::ReaderBuilder;
-use arrow_schema::{Schema, SchemaRef};
+use datafusion::arrow::csv::reader::ReaderBuilder;
+use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use async_trait::async_trait;
 use glob::glob;
 use rde_core::CsvSourceSpec;

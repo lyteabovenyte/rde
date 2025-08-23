@@ -8,15 +8,9 @@ rde-core = { path = "../rde-core" }
 anyhow = "1"
 tracing = "0.1"
 async-trait = "0.1"
-# Arrow compute kernels for future transforms
-arrow-array = "55.0"
-arrow-schema = "55.0"
-arrow-select = "55.0"
-tokio-util = "0.7.16"
-# DataFusion for SQL transformations and schema evolution
+# DataFusion for SQL transformations and Arrow re-exports
 datafusion = "49.0"
-datafusion-sql = "49.0"
-datafusion-expr = "49.0"
+tokio-util = "0.7.16"
 # JSON handling for flattening nested structures
 serde_json = "1"
 # UUID for partition naming

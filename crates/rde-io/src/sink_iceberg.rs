@@ -1,13 +1,13 @@
 use anyhow::Result;
-use arrow_array::RecordBatch;
-use arrow_schema::SchemaRef;
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::datatypes::SchemaRef;
 use async_trait::async_trait;
 use std::time::{SystemTime, UNIX_EPOCH};
 use object_store::{
     aws::AmazonS3Builder, path::Path as ObjectPath, ObjectStore, PutOptions,
 };
-use parquet::arrow::arrow_writer::ArrowWriter;
-use parquet::file::properties::WriterProperties;
+use datafusion::parquet::arrow::arrow_writer::ArrowWriter;
+use datafusion::parquet::file::properties::WriterProperties;
 use rde_core::{BatchRx, Message, Operator, Sink};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -317,16 +317,16 @@ impl IcebergSink {
         }
     }
 
-    fn convert_arrow_type_to_iceberg(&self, arrow_type: &arrow_schema::DataType) -> String {
+    fn convert_arrow_type_to_iceberg(&self, arrow_type: &datafusion::arrow::datatypes::DataType) -> String {
         match arrow_type {
-            arrow_schema::DataType::Int64 => "long".to_string(),
-            arrow_schema::DataType::Int32 => "int".to_string(),
-            arrow_schema::DataType::Float64 => "double".to_string(),
-            arrow_schema::DataType::Float32 => "float".to_string(),
-            arrow_schema::DataType::Utf8 => "string".to_string(),
-            arrow_schema::DataType::Boolean => "boolean".to_string(),
-            arrow_schema::DataType::Timestamp(_, _) => "timestamp".to_string(),
-            arrow_schema::DataType::Date32 => "date".to_string(),
+            datafusion::arrow::datatypes::DataType::Int64 => "long".to_string(),
+            datafusion::arrow::datatypes::DataType::Int32 => "int".to_string(),
+            datafusion::arrow::datatypes::DataType::Float64 => "double".to_string(),
+            datafusion::arrow::datatypes::DataType::Float32 => "float".to_string(),
+            datafusion::arrow::datatypes::DataType::Utf8 => "string".to_string(),
+            datafusion::arrow::datatypes::DataType::Boolean => "boolean".to_string(),
+            datafusion::arrow::datatypes::DataType::Timestamp(_, _) => "timestamp".to_string(),
+            datafusion::arrow::datatypes::DataType::Date32 => "date".to_string(),
             _ => "string".to_string(), // Default fallback
         }
     }

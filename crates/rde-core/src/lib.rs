@@ -1,6 +1,6 @@
 use anyhow::Result;
-use arrow_array::RecordBatch;
-use arrow_schema::SchemaRef;
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::datatypes::SchemaRef;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -74,6 +74,24 @@ pub struct KafkaSourceSpec {
     pub topic: String,
     #[serde(default)]
     pub schema: Option<SchemaConfig>,
+    #[serde(default)]
+    pub topic_mapping: Option<TopicMapping>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TopicMapping {
+    pub iceberg_table: String,
+    pub bucket: String,
+    pub endpoint: String,
+    pub access_key: String,
+    pub secret_key: String,
+    pub region: String,
+    #[serde(default)]
+    pub auto_schema_evolution: bool,
+    #[serde(default)]
+    pub sql_transform: Option<String>,
+    #[serde(default)]
+    pub partition_by: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

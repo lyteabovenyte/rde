@@ -1,0 +1,87 @@
+name: "product-analytics-pipeline"
+sources:
+  - type: kafka
+    id: "product-events-source"
+    brokers: "localhost:9092"
+    group_id: "rde-product-analytics-group"
+    topic: "product-events"
+    topic_mapping:
+      iceberg_table: "product_analytics"
+      bucket: "iceberg-data"
+      endpoint: "http://localhost:9000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+      auto_schema_evolution: true
+      sql_transform: |
+        SELECT 
+          product_id,
+          product_name,
+          category,
+          price,
+          user_id,
+          session_id,
+          event_timestamp,
+          CASE 
+            WHEN event_type = 'add_to_cart' THEN 1
+            ELSE 0 
+          END as add_to_cart_count,
+          CASE 
+            WHEN event_type = 'purchase' THEN 1
+            ELSE 0 
+          END as purchase_count,
+          CASE 
+            WHEN event_type = 'view' THEN 1
+            ELSE 0 
+          END as view_count,
+          CASE 
+            WHEN event_type = 'purchase' THEN price
+            ELSE 0 
+          END as revenue,
+          user_agent,
+          ip_address,
+          country,
+          device_type
+        FROM input_data
+        WHERE product_id IS NOT NULL
+      partition_by: ["category", "date(event_timestamp)"]
+
+transforms:
+  - type: clean_data
+    id: "clean-product-events"
+    remove_nulls: true
+    trim_strings: true
+
+  - type: sql_transform
+    id: "aggregate-product-metrics"
+    query: |
+      SELECT 
+        product_id,
+        product_name,
+        category,
+        COUNT(*) as total_events,
+        SUM(add_to_cart_count) as total_add_to_cart,
+        SUM(purchase_count) as total_purchases,
+        SUM(view_count) as total_views,
+        SUM(revenue) as total_revenue,
+        COUNT(DISTINCT user_id) as unique_users,
+        COUNT(DISTINCT session_id) as unique_sessions,
+        AVG(price) as avg_price,
+        MAX(event_timestamp) as last_event_time
+      FROM input_data
+      GROUP BY product_id, product_name, category
+
+sinks:
+  - type: iceberg
+    id: "product-analytics-sink"
+    table_name: "product_analytics"
+    bucket: "iceberg-data"
+    endpoint: "http://localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    region: "us-east-1"
+
+edges:
+  - ["product-events-source", "clean-product-events"]
+  - ["clean-product-events", "aggregate-product-metrics"]
+  - ["aggregate-product-metrics", "product-analytics-sink"]

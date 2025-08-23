@@ -1,8 +1,10 @@
-use arrow_schema::SchemaRef;
+use datafusion::arrow::datatypes::SchemaRef;
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::array::StringArray;
 use async_trait::async_trait;
 use rde_core::{BatchRx, Message, Operator, Sink};
 use tokio_util::sync::CancellationToken;
-use arrow_array::StringArray;
+use tracing::info;
 pub struct StdoutSink {
     id: String,
     schema: SchemaRef,

@@ -1,9 +1,8 @@
-use arrow_array::{RecordBatch, StringArray, ArrayRef};
-use arrow_schema::{SchemaRef, Schema, Field, DataType};
+use datafusion::arrow::array::{RecordBatch, StringArray, ArrayRef};
+use datafusion::arrow::datatypes::{SchemaRef, Schema, Field, DataType};
+use anyhow::Result;
 use async_trait::async_trait;
-use datafusion::prelude::*;
 use rde_core::{BatchRx, BatchTx, Message, Operator, Transform};
-use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, error};
 use chrono::Utc;
@@ -83,7 +82,7 @@ impl SchemaEvolution {
         }
     }
 
-    fn infer_schema_from_json(&self, json_data: &[Value]) -> anyhow::Result<Schema> {
+    fn infer_schema_from_json(&self, json_data: &[serde_json::Value]) -> anyhow::Result<Schema> {
         if json_data.is_empty() {
             return Ok(self.current_schema.as_ref().clone());
         }
@@ -104,12 +103,12 @@ impl SchemaEvolution {
 
     fn extract_fields_from_json(
         &self,
-        value: &Value,
+        value: &serde_json::Value,
         prefix: &str,
         field_map: &mut HashMap<String, DataType>,
     ) -> anyhow::Result<()> {
         match value {
-            Value::Object(map) => {
+            serde_json::Value::Object(map) => {
                 for (key, val) in map {
                     let field_name = if prefix.is_empty() {
                         key.clone()
@@ -119,26 +118,26 @@ impl SchemaEvolution {
                     self.extract_fields_from_json(val, &field_name, field_map)?;
                 }
             }
-            Value::Array(arr) => {
+            serde_json::Value::Array(arr) => {
                 if !arr.is_empty() {
                     // For arrays, we'll use the type of the first element
                     self.extract_fields_from_json(&arr[0], prefix, field_map)?;
                 }
             }
-            Value::String(_) => {
+            serde_json::Value::String(_) => {
                 field_map.insert(prefix.to_string(), DataType::Utf8);
             }
-            Value::Number(n) => {
+            serde_json::Value::Number(n) => {
                 if n.is_i64() {
                     field_map.insert(prefix.to_string(), DataType::Int64);
                 } else {
                     field_map.insert(prefix.to_string(), DataType::Float64);
                 }
             }
-            Value::Bool(_) => {
+            serde_json::Value::Bool(_) => {
                 field_map.insert(prefix.to_string(), DataType::Boolean);
             }
-            Value::Null => {
+            serde_json::Value::Null => {
                 // Skip null values in schema inference
             }
         }
@@ -199,7 +198,7 @@ impl Transform for SchemaEvolution {
 }
 
 impl SchemaEvolution {
-    fn batch_to_json(&self, batch: &RecordBatch) -> anyhow::Result<Vec<Value>> {
+    fn batch_to_json(&self, batch: &RecordBatch) -> anyhow::Result<Vec<serde_json::Value>> {
         // Convert Arrow batch to JSON for schema inference
         // This is a simplified implementation
         // TODO: check with schema registry for desired schema and infer which table and partition the data is for based on schema
@@ -211,15 +210,15 @@ impl SchemaEvolution {
                 let value = self.array_value_to_json(array, row_idx)?;
                 row.insert(field.name().clone(), value);
             }
-            json_data.push(Value::Object(row));
+            json_data.push(serde_json::Value::Object(row));
         }
         Ok(json_data)
     }
 
-    fn array_value_to_json(&self, _array: &ArrayRef, _row_idx: usize) -> anyhow::Result<Value> {
+    fn array_value_to_json(&self, _array: &ArrayRef, _row_idx: usize) -> anyhow::Result<serde_json::Value> {
         // Simplified conversion from Arrow array to JSON value
         // In a real implementation, you'd handle all Arrow types properly
-        Ok(Value::String("placeholder".to_string()))
+        Ok(serde_json::Value::String("placeholder".to_string()))
     }
 }
 
@@ -243,17 +242,17 @@ impl JsonFlatten {
 
     fn flatten_json_value(
         &self,
-        value: &Value,
+        value: &serde_json::Value,
         prefix: &str,
         depth: usize,
-        result: &mut HashMap<String, Value>,
+        result: &mut HashMap<String, serde_json::Value>,
     ) -> anyhow::Result<()> {
         if depth > self.max_depth {
             return Ok(());
         }
 
         match value {
-            Value::Object(map) => {
+            serde_json::Value::Object(map) => {
                 for (key, val) in map {
                     let field_name = if prefix.is_empty() {
                         key.clone()
@@ -263,12 +262,12 @@ impl JsonFlatten {
                     self.flatten_json_value(val, &field_name, depth + 1, result)?;
                 }
             }
-            Value::Array(arr) => {
+            serde_json::Value::Array(arr) => {
                 // For arrays, we'll flatten the first element or create a JSON string
                 if !arr.is_empty() {
                     self.flatten_json_value(&arr[0], prefix, depth + 1, result)?;
                 } else {
-                    result.insert(prefix.to_string(), Value::Array(vec![]));
+                    result.insert(prefix.to_string(), serde_json::Value::Array(vec![]));
                 }
             }
             _ => {
@@ -342,14 +341,14 @@ impl JsonFlatten {
             self.flatten_json_value(&row, "", 0, &mut flattened_row)?;
             // Convert HashMap to serde_json::Map
             let map = serde_json::Map::from_iter(flattened_row);
-            flattened_data.push(Value::Object(map));
+            flattened_data.push(serde_json::Value::Object(map));
         }
         
         // Convert back to Arrow batch
         self.json_to_batch(&flattened_data)
     }
 
-    fn batch_to_json(&self, batch: &RecordBatch) -> anyhow::Result<Vec<Value>> {
+    fn batch_to_json(&self, batch: &RecordBatch) -> anyhow::Result<Vec<serde_json::Value>> {
         // Simplified conversion - in real implementation, handle all Arrow types
         let mut json_data = Vec::new();
         for row_idx in 0..batch.num_rows() {
@@ -359,17 +358,17 @@ impl JsonFlatten {
                 let value = self.array_value_to_json(array, row_idx)?;
                 row.insert(field.name().clone(), value);
             }
-            json_data.push(Value::Object(row));
+            json_data.push(serde_json::Value::Object(row));
         }
         Ok(json_data)
     }
 
-    fn array_value_to_json(&self, _array: &ArrayRef, _row_idx: usize) -> anyhow::Result<Value> {
+    fn array_value_to_json(&self, _array: &ArrayRef, _row_idx: usize) -> anyhow::Result<serde_json::Value> {
         // Simplified conversion - in real implementation, handle all Arrow types
-        Ok(Value::String("placeholder".to_string()))
+        Ok(serde_json::Value::String("placeholder".to_string()))
     }
 
-    fn json_to_batch(&self, json_data: &[Value]) -> anyhow::Result<RecordBatch> {
+    fn json_to_batch(&self, json_data: &[serde_json::Value]) -> anyhow::Result<RecordBatch> {
         // Simplified conversion - in real implementation, handle all Arrow types
         let schema = Arc::new(Schema::new(vec![
             Field::new("flattened_data", DataType::Utf8, true)
@@ -522,12 +521,12 @@ pub struct SqlTransform {
     schema: SchemaRef,
     query: String,
     window_size: usize,
-    ctx: SessionContext,
+    ctx: datafusion::prelude::SessionContext,
 }
 
 impl SqlTransform {
     pub fn new(id: String, schema: SchemaRef, query: String, window_size: usize) -> anyhow::Result<Self> {
-        let ctx = SessionContext::new();
+        let ctx = datafusion::prelude::SessionContext::new();
         
         Ok(Self {
             id,

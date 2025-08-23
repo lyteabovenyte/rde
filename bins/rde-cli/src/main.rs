@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arrow_schema::SchemaRef;
+use datafusion::arrow::datatypes::SchemaRef;
 use clap::Parser;
 use rde_core::PipelineSpec;
 use rde_core::SourceSpec;
@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use object_store::ObjectStore;
 
 
 #[derive(Parser, Debug)]
@@ -62,7 +63,7 @@ async fn main() -> Result<()> {
                 anyhow::bail!("no files matched: {}", csv.path);
             }
             
-            let inferred_schema = arrow_csv::reader::infer_schema_from_files(
+            let inferred_schema = datafusion::arrow::csv::reader::infer_schema_from_files(
                 &paths,
                 b',',
                 Some(100),
@@ -70,13 +71,77 @@ async fn main() -> Result<()> {
             )?;
             Arc::new(inferred_schema)
         }
-        SourceSpec::Kafka(_) => {
-            // For Kafka, use a schema that matches the JSON structure
-            Arc::new(arrow_schema::Schema::new(vec![
-                // TODO: this is hardcoded schema layout, we should infer schema on the fly
-                arrow_schema::Field::new("id", arrow_schema::DataType::Int64, true),
-                arrow_schema::Field::new("amount", arrow_schema::DataType::Int64, true),
-            ]))
+        SourceSpec::Kafka(kafka) => {
+            // For Kafka, use dynamic schema inference
+            // The schema will be inferred from the first message or loaded from the mapped Iceberg table
+            if let Some(mapping) = &kafka.topic_mapping {
+                // Try to load schema from the mapped table
+                let object_store = object_store::aws::AmazonS3Builder::new()
+                    .with_endpoint(&mapping.endpoint)
+                    .with_access_key_id(&mapping.access_key)
+                    .with_secret_access_key(&mapping.secret_key)
+                    .with_region(&mapping.region)
+                    .with_allow_http(true)
+                    .build()?;
+                
+                let metadata_path = format!("{}/metadata/metadata.json", mapping.iceberg_table);
+                let path = object_store::path::Path::from(metadata_path.as_str());
+                
+                match object_store.get(&path).await {
+                    Ok(data) => {
+                        let metadata_json = String::from_utf8(data.bytes().await?.to_vec())?;
+                        let metadata: serde_json::Value = serde_json::from_str(&metadata_json)?;
+                        
+                        if let Some(current_schema_id) = metadata["current_schema_id"].as_i64() {
+                            if let Some(schemas) = metadata["schemas"].as_object() {
+                                if let Some(schema_data) = schemas.get(&current_schema_id.to_string()) {
+                                    // Convert Iceberg schema to Arrow schema
+                                    let fields: Vec<datafusion::arrow::datatypes::Field> = schema_data["fields"]
+                                        .as_array()
+                                        .unwrap_or(&Vec::new())
+                                        .iter()
+                                        .map(|field| {
+                                            let name = field["name"].as_str().unwrap_or("unknown");
+                                            let field_type = field["type"].as_str().unwrap_or("string");
+                                            let required = field["required"].as_bool().unwrap_or(false);
+                                            
+                                            let data_type = match field_type {
+                                                "long" => datafusion::arrow::datatypes::DataType::Int64,
+                                                "int" => datafusion::arrow::datatypes::DataType::Int32,
+                                                "double" => datafusion::arrow::datatypes::DataType::Float64,
+                                                "float" => datafusion::arrow::datatypes::DataType::Float32,
+                                                "boolean" => datafusion::arrow::datatypes::DataType::Boolean,
+                                                "string" => datafusion::arrow::datatypes::DataType::Utf8,
+                                                "binary" => datafusion::arrow::datatypes::DataType::Binary,
+                                                "date" => datafusion::arrow::datatypes::DataType::Date32,
+                                                "timestamp" => datafusion::arrow::datatypes::DataType::Timestamp(datafusion::arrow::datatypes::TimeUnit::Microsecond, None),
+                                                _ => datafusion::arrow::datatypes::DataType::Utf8,
+                                            };
+                                            
+                                            datafusion::arrow::datatypes::Field::new(name, data_type, !required)
+                                        })
+                                        .collect();
+                                    
+                                    Arc::new(datafusion::arrow::datatypes::Schema::new(fields))
+                                } else {
+                                    Arc::new(datafusion::arrow::datatypes::Schema::empty())
+                                }
+                            } else {
+                                Arc::new(datafusion::arrow::datatypes::Schema::empty())
+                            }
+                        } else {
+                            Arc::new(datafusion::arrow::datatypes::Schema::empty())
+                        }
+                    }
+                    Err(_) => {
+                        // No existing table, start with empty schema
+                        Arc::new(datafusion::arrow::datatypes::Schema::empty())
+                    }
+                }
+            } else {
+                // No topic mapping, start with empty schema for dynamic inference
+                Arc::new(datafusion::arrow::datatypes::Schema::empty())
+            }
         }
     };
     

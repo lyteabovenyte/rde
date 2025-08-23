@@ -35,10 +35,16 @@ The implementation now creates proper Iceberg tables instead of just raw Parquet
 
 **Note**: There's a minor issue with data flow in multi-transform pipelines where some transforms fail to send data downstream, but the Iceberg sink functionality itself is complete and working.
 
-- [ ] Fix the data flow in multi-transform pipelines where some transforms fail to send data downstream, `crates/rde-io/src/sink_iceberg.rs:531`
-? track the issue in schema, trasnform, sink and source, maybe the target table format for the message is not correct, we should link each topic in kafka to each table in iceberg
-so that we can have a proper mapping between the topic and the table in iceberg and the schema in iceberg should be the same as the schema in kafka, in this way further we
-we can have specific sql transformation logic for each topic messages in kafka to have nice and clean data in iceberg data down the road.
+- [x] Fix the data flow in multi-transform pipelines where some transforms fail to send data downstream, `crates/rde-io/src/sink_iceberg.rs:531`
+- [x] Link each topic in kafka to each table in iceberg with proper mapping
+- [x] Implement automatic schema evolution for Iceberg tables when new fields are detected in Kafka messages
+- [x] Add topic-specific SQL transformation logic using DataFusion for each topic
+- [x] Remove hardcoded schemas and implement dynamic schema inference
+- [x] Create topic mapping system that handles schema consistency between Kafka and Iceberg
+
+- [ ] write a script which our kafka broker can stream messages from a json file (or a directory of json files) so that we don't need
+to manually send messages to kafka broker, this way we can test our pipeline with massive data and also test our pipeline with different schemas for different topics which will
+be sinked into different tables in iceberg.
 
 - [ ] Make kafka source messages generic over payload, for now we just accept JSON payload, `crates/rde-io/source-kafka.rs:24`
 making payload generic over Avro/Protobuf/etc to be able to support more sources from kafka
