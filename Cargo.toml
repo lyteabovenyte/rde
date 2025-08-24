@@ -4,5 +4,6 @@ members = [
 "crates/rde-io",
 "crates/rde-tx",
 "bins/rde-cli",
+"bins/kafka-producer",
 ]
 resolver = "2"
