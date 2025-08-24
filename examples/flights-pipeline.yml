@@ -1,0 +1,59 @@
+name: "flights-data-pipeline"
+sources:
+  - type: kafka
+    id: "flights-source"
+    brokers: "localhost:9092"
+    group_id: "rde-flights-group"
+    topic: "flights"
+    topic_mapping:
+      iceberg_table: "flights_data"
+      bucket: "iceberg-data"
+      endpoint: "http://localhost:9000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+      auto_schema_evolution: true
+      sql_transform: |
+        SELECT 
+          FL_DATE as flight_date,
+          CASE 
+            WHEN DEP_DELAY > 0 THEN DEP_DELAY
+            ELSE 0 
+          END as departure_delay_minutes,
+          CASE 
+            WHEN ARR_DELAY > 0 THEN ARR_DELAY
+            ELSE 0 
+          END as arrival_delay_minutes,
+          AIR_TIME as air_time_minutes,
+          DISTANCE as distance_miles,
+          DEP_TIME as departure_time,
+          ARR_TIME as arrival_time,
+          CASE 
+            WHEN DEP_DELAY > 15 OR ARR_DELAY > 15 THEN 'delayed'
+            WHEN DEP_DELAY < 0 AND ARR_DELAY < 0 THEN 'early'
+            ELSE 'on_time'
+          END as flight_status,
+          DATE(FL_DATE) as partition_date
+        FROM input_data
+        WHERE FL_DATE IS NOT NULL
+      partition_by: ["partition_date"]
+
+transforms:
+  - type: clean_data
+    id: "clean-flights"
+    remove_nulls: false
+    trim_strings: true
+
+sinks:
+  - type: iceberg
+    id: "flights-sink"
+    table_name: "flights_data"
+    bucket: "iceberg-data"
+    endpoint: "http://localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    region: "us-east-1"
+
+edges:
+  - ["flights-source", "clean-flights"]
+  - ["clean-flights", "flights-sink"]

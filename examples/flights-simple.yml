@@ -1,0 +1,25 @@
+name: "flights-simple-pipeline"
+sources:
+  - type: kafka
+    id: "flights-source"
+    brokers: "localhost:9092"
+    group_id: "rde-flights-simple-group"
+    topic: "flights"
+
+transforms:
+  - type: passthrough
+    id: "passthrough-flights"
+
+sinks:
+  - type: iceberg
+    id: "flights-sink"
+    table_name: "flights_data_simple"
+    bucket: "iceberg-data"
+    endpoint: "http://localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    region: "us-east-1"
+
+edges:
+  - ["flights-source", "passthrough-flights"]
+  - ["passthrough-flights", "flights-sink"]

@@ -1,0 +1,76 @@
+name: "spotify-audio-features-pipeline"
+sources:
+  - type: kafka
+    id: "spotify-source"
+    brokers: "localhost:9092"
+    group_id: "rde-spotify-group"
+    topic: "spotify"
+    topic_mapping:
+      iceberg_table: "spotify_audio_features"
+      bucket: "iceberg-data"
+      endpoint: "http://localhost:9000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+      auto_schema_evolution: true
+      sql_transform: |
+        SELECT 
+          id as track_id,
+          danceability,
+          energy,
+          key as musical_key,
+          loudness,
+          mode as musical_mode,
+          speechiness,
+          acousticness,
+          instrumentalness,
+          liveness,
+          valence as positivity,
+          tempo,
+          time_signature,
+          duration_ms as duration_milliseconds,
+          ROUND(duration_ms / 1000.0, 2) as duration_seconds,
+          CASE 
+            WHEN danceability > 0.7 THEN 'highly_danceable'
+            WHEN danceability > 0.5 THEN 'danceable'
+            ELSE 'not_danceable'
+          END as danceability_category,
+          CASE 
+            WHEN energy > 0.7 THEN 'high_energy'
+            WHEN energy > 0.4 THEN 'medium_energy'
+            ELSE 'low_energy'
+          END as energy_category,
+          CASE 
+            WHEN valence > 0.7 THEN 'positive'
+            WHEN valence > 0.4 THEN 'neutral'
+            ELSE 'negative'
+          END as mood_category,
+          CASE 
+            WHEN tempo > 120 THEN 'fast'
+            WHEN tempo > 80 THEN 'medium'
+            ELSE 'slow'
+          END as tempo_category,
+          DATE('2024-01-01') as partition_date
+        FROM input_data
+        WHERE id IS NOT NULL
+      partition_by: ["energy_category", "danceability_category"]
+
+transforms:
+  - type: clean_data
+    id: "clean-spotify"
+    remove_nulls: true
+    trim_strings: true
+
+sinks:
+  - type: iceberg
+    id: "spotify-sink"
+    table_name: "spotify_audio_features"
+    bucket: "iceberg-data"
+    endpoint: "http://localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    region: "us-east-1"
+
+edges:
+  - ["spotify-source", "clean-spotify"]
+  - ["clean-spotify", "spotify-sink"]
