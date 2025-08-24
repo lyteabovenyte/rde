@@ -1,3 +1,61 @@
+//! # RDE Transformations - Data Processing Operators
+//!
+//! This crate provides a comprehensive set of data transformation operators for the RDE pipeline.
+//! These operators can modify, filter, aggregate, enrich, and restructure data as it flows
+//! through the processing pipeline.
+//!
+//! ## Available Transformations
+//!
+//! ### Basic Transformations
+//! - **Passthrough**: No-op transformation for testing and simple data flow
+//! - **Schema Evolution**: Dynamic schema inference and evolution handling
+//! - **Data Cleaning**: Remove nulls, trim strings, normalize case
+//!
+//! ### Structural Transformations  
+//! - **JSON Flattening**: Convert nested JSON structures to flat tables
+//! - **Partitioning**: Add partition columns for optimized storage
+//!
+//! ### Advanced Transformations
+//! - **SQL Transform**: Complex business logic using DataFusion SQL engine
+//! - **Window Operations**: Time-based aggregations and analytics
+//! - **Custom Transforms**: Extensible framework for domain-specific logic
+//!
+//! ## Example Usage
+//!
+//! ```rust
+//! use rde_tx::Passthrough;
+//! use rde_core::{Transform, Operator};
+//! use datafusion::arrow::datatypes::{Schema, Field, DataType};
+//! use std::sync::Arc;
+//!
+//! // Create a simple passthrough transform
+//! let schema = Arc::new(Schema::new(vec![
+//!     Field::new("id", DataType::Int64, false),
+//!     Field::new("name", DataType::Utf8, true),
+//! ]));
+//!
+//! let transform = Passthrough::new("passthrough-1".to_string(), schema);
+//! println!("Transform name: {}", transform.name());
+//! ```
+//!
+//! ## SQL Transformations
+//!
+//! The SQL transform operator uses DataFusion to execute SQL queries on streaming data:
+//!
+//! ```sql
+//! SELECT 
+//!   user_id,
+//!   event_type,
+//!   timestamp,
+//!   CASE 
+//!     WHEN event_type = 'purchase' THEN amount
+//!     ELSE 0 
+//!   END as revenue,
+//!   DATE(timestamp) as partition_date
+//! FROM input_data
+//! WHERE user_id IS NOT NULL
+//! ```
+
 use datafusion::arrow::array::{RecordBatch, StringArray, ArrayRef};
 use datafusion::arrow::datatypes::{SchemaRef, Schema, Field, DataType};
 use anyhow::Result;
@@ -9,13 +67,44 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Passthrough transformation operator
+///
+/// This is a no-op transformation that simply passes data through without modification.
+/// It's useful for testing pipeline connectivity, debugging data flow, and as a placeholder
+/// during pipeline development.
+/// 
+/// The passthrough operator forwards all messages (batches, watermarks, and end-of-stream)
+/// to downstream operators without any processing or modification.
 pub struct Passthrough {
+    /// Unique identifier for this transform operator
     id: String,
+    /// Schema of the data passing through this operator
     schema: SchemaRef,
 }
 
-// no transformation yet -> just passing through
 impl Passthrough {
+    /// Create a new passthrough transformation
+    /// 
+    /// # Arguments
+    /// * `id` - Unique identifier for this operator instance
+    /// * `schema` - Arrow schema describing the data structure
+    /// 
+    /// # Returns
+    /// A new Passthrough instance ready for use in a pipeline
+    /// 
+    /// # Example
+    /// ```rust
+    /// use rde_tx::Passthrough;
+    /// use datafusion::arrow::datatypes::{Schema, Field, DataType};
+    /// use std::sync::Arc;
+    /// 
+    /// let schema = Arc::new(Schema::new(vec![
+    ///     Field::new("id", DataType::Int64, false),
+    ///     Field::new("name", DataType::Utf8, true),
+    /// ]));
+    /// 
+    /// let passthrough = Passthrough::new("test-passthrough".to_string(), schema);
+    /// ```
     pub fn new(id: String, schema: SchemaRef) -> Self {
         Self { id, schema }
     }

@@ -62,7 +62,7 @@ case $choice in
         # Check if infrastructure is running
         echo -e "${YELLOW}📋 Checking infrastructure...${NC}"
         if ! nc -z localhost 9092 2>/dev/null; then
-            echo -e "${RED}❌ Kafka not running. Please run: docker-compose up -d${NC}"
+            echo -e "${RED}❌ Kafka not running. Please run: docker-compose -f docker/docker-compose.yml up -d${NC}"
             exit 1
         fi
         if ! nc -z localhost 9000 2>/dev/null; then

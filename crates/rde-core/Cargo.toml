@@ -1,7 +1,13 @@
 [package]
 name = "rde-core"
-version = "0.1.0"
-edition = "2024"
+version = "2.0.0"
+edition = "2021"
+authors = ["RDE Team <team@rde-project.org>"]
+license = "MIT"
+repository = "https://github.com/lyteabovenyte/rde"
+description = "Core traits, types, and abstractions for RDE data engineering pipelines"
+keywords = ["data-engineering", "streaming", "arrow", "iceberg", "kafka"]
+categories = ["database", "data-structures"]
 
 [dependencies]
 anyhow = "1"

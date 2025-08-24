@@ -37,11 +37,11 @@ wait_for_service() {
 
 # Step 1: Stop existing containers
 echo -e "${YELLOW}🛑 Stopping existing containers...${NC}"
-docker-compose down 2>/dev/null || true
+docker-compose -f docker/docker-compose.yml down 2>/dev/null || true
 
 # Step 2: Start simple stack
 echo -e "${YELLOW}🚀 Starting Trino stack...${NC}"
-docker-compose -f docker-compose-trino-simple.yml up -d
+docker-compose -f docker/docker-compose-trino-simple.yml up -d
 
 # Step 3: Wait for services
 wait_for_service localhost 9000 "MinIO" 30

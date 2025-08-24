@@ -1,9 +1,56 @@
+# RDE - Rust Data Engineering
+# 
+# High-performance real-time data engineering pipeline framework
+# Built with Apache Arrow, DataFusion, and Apache Iceberg
+#
+# Version: 2.0.0
+# License: MIT
+# Repository: https://github.com/lyteabovenyte/rde
+
 [workspace]
 members = [
-"crates/rde-core",
-"crates/rde-io",
-"crates/rde-tx",
-"bins/rde-cli",
-"bins/kafka-producer",
+    "crates/rde-core",      # Core traits, types, and abstractions
+    "crates/rde-io",        # Source and sink implementations
+    "crates/rde-tx",        # Transform operator implementations
+    "bins/rde-cli",         # Main pipeline runner CLI
+    "bins/kafka-producer",  # Data streaming utility
 ]
 resolver = "2"
+
+[workspace.package]
+version = "2.0.0"
+edition = "2021"
+authors = ["RDE Team <team@rde-project.org>"]
+license = "MIT"
+repository = "https://github.com/lyteabovenyte/rde"
+homepage = "https://rde-project.org"
+description = "High-performance real-time data engineering pipeline framework"
+keywords = ["data-engineering", "streaming", "arrow", "iceberg", "kafka"]
+categories = ["database", "data-structures", "command-line-utilities"]
+readme = "README.md"
+
+[workspace.dependencies]
+# Core dependencies shared across workspace
+anyhow = "1.0"
+tokio = { version = "1.32", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+async-trait = "0.1"
+
+# Apache Arrow ecosystem
+datafusion = "33.0"
+arrow = "50.0"
+parquet = "50.0"
+
+# Data lake and storage
+iceberg = "0.2"
+object_store = "0.8"
+
+# Kafka integration
+rdkafka = { version = "0.36", features = ["tokio"] }
+
+# CLI and configuration
+clap = { version = "4.4", features = ["derive"] }
+serde_yaml = "0.9"

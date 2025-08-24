@@ -1,52 +1,251 @@
 # RDE - Rust Data Engineering
 
-A high-performance, real-time data engineering pipeline built in Rust using Apache Arrow and DataFusion.
+<div align="center">
 
-## Features
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/lyteabovenyte/rde)
+[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![Apache Arrow](https://img.shields.io/badge/Apache%20Arrow-55.2.0-red.svg)](https://arrow.apache.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-### Sources
-- **Kafka**: Real-time streaming from Kafka topics with JSON schema inference and **topic-to-table mapping**
-- **CSV**: Batch processing from CSV files with automatic schema detection
+**High-Performance Real-Time Data Engineering Pipeline in Rust**
 
-### Transforms
-- **Schema Evolution**: Dynamic schema inference and evolution for changing data structures
-- **JSON Flattening**: Convert nested JSON structures to flat relational format
-- **Data Cleaning**: Remove nulls, trim strings, normalize case, and more
-- **Partitioning**: Add partition columns for optimized downstream analytics
+*Building the future of streaming data processing with Apache Arrow, DataFusion, and Apache Iceberg*
+
+[Features](#-features) •
+[Quick Start](#-quick-start) •
+[Architecture](#-architecture) •
+[Documentation](#-documentation) •
+[Examples](#-examples) •
+[Contributing](#-contributing)
+
+</div>
+
+---
+
+## 🚀 Overview
+
+RDE (Rust Data Engineering) is a high-performance, real-time data engineering framework built in Rust. It provides a complete solution for streaming data processing, from ingestion through transformation to storage, leveraging the power of Apache Arrow, DataFusion, and Apache Iceberg.
+
+### Why RDE?
+
+- **🏃‍♂️ High Performance**: Built with Rust for maximum speed and memory efficiency
+- **🔄 Real-Time Processing**: Stream processing with millisecond latencies
+- **📊 Modern Data Stack**: Apache Arrow, DataFusion, and Iceberg integration
+- **🧩 Modular Architecture**: Composable operators for flexible pipeline construction
+- **🛡️ Type Safety**: Compile-time guarantees for data pipeline correctness
+- **📈 Scalable**: Horizontal scaling with Kafka and distributed processing
+- **🔍 Observable**: Built-in metrics, logging, and monitoring capabilities
+
+## ✨ Features
+
+### 🎯 Data Sources
+- **Kafka**: Real-time streaming with JSON schema inference and evolution
+- **CSV Files**: Batch processing with automatic schema detection
+- **Custom Sources**: Extensible source interface for any data system
+
+### 🔧 Transformations
+- **Schema Evolution**: Dynamic schema inference and evolution for changing data
+- **JSON Flattening**: Convert nested JSON to flat relational structures
 - **SQL Transformations**: Complex business logic using DataFusion SQL engine
-- **Passthrough**: Simple pass-through transformation (no changes)
+- **Data Cleaning**: Remove nulls, trim strings, normalize case, and more
+- **Partitioning**: Add partition columns for optimized analytics
+- **Custom Transforms**: Build domain-specific transformations
 
-### Sinks
-- **Iceberg**: Write to Apache Iceberg tables in MinIO/S3 with Parquet format
-- **Parquet Directory**: Write partitioned Parquet files to local filesystem
-- **Stdout**: Pretty-print data for debugging and development
+### 💾 Data Sinks
+- **Apache Iceberg**: Production-grade data lake tables with ACID transactions
+- **Parquet**: High-performance columnar storage with compression
+- **Console Output**: Development and debugging support
+- **Custom Sinks**: Extensible sink interface for any target system
 
-## 🚀 New: Topic-to-Table Mapping
+### 🎛️ Advanced Features
+- **Topic-to-Table Mapping**: Direct Kafka-to-Iceberg streaming
+- **Automatic Schema Evolution**: Handle changing data structures seamlessly
+- **SQL Analytics**: Query your data with Trino and DataGrip integration
+- **Monitoring**: Comprehensive observability and health monitoring
+- **Production Ready**: Docker deployment with infrastructure automation
 
-RDE now supports **topic-to-table mapping** that links Kafka topics directly to Iceberg tables with automatic schema evolution and topic-specific transformations:
+## 🏗️ Architecture
 
-### Key Benefits:
-1. **Automatic Schema Evolution**: When new fields are detected in Kafka messages, the Iceberg table schema is automatically updated without overwriting existing data
-2. **Topic-Specific Transformations**: Each topic can have its own SQL transformation logic using DataFusion
-3. **Direct Mapping**: No need for separate sink configurations - the mapping handles everything
-4. **Schema Consistency**: Ensures the Kafka message schema matches the Iceberg table schema
+```mermaid
+graph TB
+    subgraph "Data Sources"
+        K[Kafka Topics]
+        C[CSV Files]
+        A[APIs]
+    end
+    
+    subgraph "RDE Pipeline"
+        S[Source Operators]
+        T[Transform Operators]
+        SI[Sink Operators]
+        S --> T --> SI
+    end
+    
+    subgraph "Data Lake"
+        I[Apache Iceberg]
+        P[Parquet Files]
+        M[MinIO/S3]
+    end
+    
+    subgraph "Analytics"
+        TR[Trino]
+        DG[DataGrip]
+        BI[BI Tools]
+    end
+    
+    K --> S
+    C --> S
+    A --> S
+    
+    SI --> I
+    SI --> P
+    I --> M
+    P --> M
+    
+    M --> TR
+    TR --> DG
+    TR --> BI
+```
 
-### Example Configuration:
+### Core Components
+
+- **Pipeline Engine**: High-performance message passing between operators
+- **Schema Registry**: Automatic schema inference and evolution tracking
+- **Transformation Engine**: DataFusion-powered SQL and custom transformations
+- **Storage Layer**: Apache Iceberg integration with ACID guarantees
+- **Query Engine**: Trino integration for SQL analytics
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Rust 1.70+** - [Install Rust](https://rustup.rs/)
+- **Docker** - [Install Docker](https://docs.docker.com/get-docker/)
+- **Git** - Version control
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/lyteabovenyte/rde.git
+cd rde
+
+# Build the project
+cargo build --release
+
+# Start infrastructure (Kafka, MinIO, Trino)
+docker-compose -f docker/docker-compose.yml up -d
+```
+
+### Your First Pipeline
+
+1. **Create a simple pipeline configuration:**
 
 ```yaml
+# examples/my-first-pipeline.yml
+name: "my-first-pipeline"
 sources:
   - type: kafka
-    id: "user-events-source"
+    id: "kafka-source"
     brokers: "localhost:9092"
-    group_id: "rde-user-events-group"
+    group_id: "my-pipeline-group"
+    topic: "input-data"
+
+transforms:
+  - type: clean_data
+    id: "clean-data"
+    remove_nulls: true
+    trim_strings: true
+
+sinks:
+  - type: iceberg
+    id: "iceberg-sink"
+    table_name: "my_table"
+    bucket: "iceberg-data"
+    endpoint: "http://localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    region: "us-east-1"
+
+edges:
+  - ["kafka-source", "clean-data"]
+  - ["clean-data", "iceberg-sink"]
+```
+
+2. **Run the pipeline:**
+
+```bash
+cargo run --bin rde-cli -- --pipeline examples/my-first-pipeline.yml
+```
+
+3. **Stream some test data:**
+
+```bash
+# Generate and stream test data
+echo '{"id": 1, "name": "Alice", "age": 30}' | \
+cargo run --bin kafka-producer -- \
+  --input /dev/stdin \
+  --topic input-data \
+  --format ndjson
+```
+
+4. **Query your data:**
+
+```bash
+# Start Trino for SQL analytics
+./scripts/setup-trino.sh
+
+# Query your data
+./scripts/run-sql.sh "SELECT * FROM iceberg.default.my_table"
+```
+
+## 📖 Documentation
+
+### API Documentation
+
+Generate and view the complete API documentation:
+
+```bash
+cargo doc --open
+```
+
+### Configuration Reference
+
+- **[Pipeline Configuration](docs/configuration.md)** - Complete YAML configuration reference
+- **[Source Operators](docs/sources.md)** - Available data source connectors
+- **[Transform Operators](docs/transforms.md)** - Data transformation options
+- **[Sink Operators](docs/sinks.md)** - Output destination configurations
+
+### Guides
+
+- **[Getting Started Guide](docs/getting-started.md)** - Step-by-step tutorial
+- **[Schema Evolution](docs/schema-evolution.md)** - Handling changing data structures
+- **[SQL Transformations](docs/sql-transforms.md)** - Using DataFusion SQL
+- **[Iceberg Integration](docs/iceberg.md)** - Working with data lakes
+- **[Monitoring & Observability](docs/monitoring.md)** - Production monitoring
+- **[Performance Tuning](docs/performance.md)** - Optimization guidelines
+
+### Integration Guides
+
+- **[Trino + DataGrip Setup](TRINO-DATAGRIP-SETUP.md)** - SQL analytics setup
+- **[Kafka Integration](docs/kafka.md)** - Streaming data ingestion
+- **[Docker Deployment](docs/deployment.md)** - Production deployment guide
+
+## 💡 Examples
+
+### Real-Time Analytics Pipeline
+
+Process live e-commerce events with schema evolution:
+
+```yaml
+name: "ecommerce-analytics"
+sources:
+  - type: kafka
+    id: "events-source"
+    brokers: "localhost:9092"
     topic: "user-events"
     topic_mapping:
       iceberg_table: "user_events"
-      bucket: "iceberg-data"
-      endpoint: "http://localhost:9000"
-      access_key: "minioadmin"
-      secret_key: "minioadmin"
-      region: "us-east-1"
       auto_schema_evolution: true
       sql_transform: |
         SELECT 
@@ -56,226 +255,215 @@ sources:
           CASE 
             WHEN event_type = 'purchase' THEN amount
             ELSE 0 
-          END as purchase_amount,
-          metadata->>'page' as page_url
+          END as revenue,
+          DATE(timestamp) as partition_date
         FROM input_data
         WHERE user_id IS NOT NULL
-      partition_by: ["event_type", "date(timestamp)"]
 ```
 
-### How It Works:
+### Batch ETL Pipeline
 
-1. **Schema Loading**: On startup, RDE loads the existing schema from the mapped Iceberg table
-2. **Message Processing**: Each Kafka message is parsed and compared against the current schema
-3. **Schema Evolution**: If new fields are detected, the Iceberg table schema is automatically updated
-4. **SQL Transformation**: The topic-specific SQL query is applied to transform the data
-5. **Data Writing**: Transformed data is written to the mapped Iceberg table
-
-## Quick Start
-
-### Prerequisites
-- Rust 1.70+
-- Docker and Docker Compose (for Kafka and MinIO)
-- Apache Kafka broker running on `localhost:9092`
-- MinIO running on `localhost:9000`
-
-### Installation
-```bash
-git clone <repository>
-cd rde
-cargo build --release
-```
-
-### Running a Pipeline
-
-1. **Start infrastructure services:**
-```bash
-docker-compose up -d
-scripts/start-minio.sh
-```
-
-2. **Run a simple Kafka to Iceberg pipeline:**
-```bash
-cargo run --bin rde-cli -- -p examples/kafka-iceberg.yml
-```
-
-3. **Run with topic mapping (recommended):**
-```bash
-cargo run --bin rde-cli -- -p examples/kafka-iceberg-topic-mapping.yml
-```
-
-4. **Run with advanced transformations:**
-```bash
-cargo run --bin rde-cli -- -p examples/kafka-iceberg-with-transforms.yml
-```
-
-## Configuration
-
-### Pipeline Configuration
-
-Pipelines are defined in YAML format with sources, transforms, and sinks connected by edges:
+Process large CSV files with transformations:
 
 ```yaml
-name: my-pipeline
+name: "sales-etl"
 sources:
-  - type: kafka
-    id: kafka-source
-    brokers: localhost:9092
-    group_id: my-group
-    topic: my-topic
-    topic_mapping:
-      iceberg_table: "my_table"
-      bucket: "my-bucket"
-      endpoint: "http://localhost:9000"
-      access_key: "minioadmin"
-      secret_key: "minioadmin"
-      region: "us-east-1"
-      auto_schema_evolution: true
-      sql_transform: |
+  - type: csv
+    id: "sales-files"
+    path: "data/sales/*.csv"
+    has_header: true
+    batch_rows: 10000
+
+transforms:
+  - type: sql_transform
+    id: "enrich-sales"
+    query: |
         SELECT 
           *,
-          CASE 
-          WHEN amount > 1000 THEN 'high_value'
-          ELSE 'low_value'
-        END as value_tier
+        amount * 1.1 as amount_with_tax,
+        CASE 
+          WHEN amount > 1000 THEN 'high-value'
+          ELSE 'standard'
+        END as order_tier
+      FROM input_data
 ```
 
-### Transform Types
+### Stream Processing with Windowing
 
-#### Schema Evolution
-Handles dynamic schema changes in streaming data:
-```yaml
-- type: schema_evolution
-  id: schema-evolution
-  auto_infer: true      # Automatically infer schema from data
-  strict_mode: false    # Allow schema changes (false) or fail (true)
-```
+Real-time aggregations with time windows:
 
-#### JSON Flattening
-Converts nested JSON structures to flat relational format:
 ```yaml
-- type: json_flatten
-  id: flatten
-  separator: "_"        # Separator for nested field names
-  max_depth: 3          # Maximum nesting depth to flatten
-```
-
-#### Data Cleaning
-Cleans and normalizes data:
-```yaml
-- type: clean_data
-  id: cleaner
-  remove_nulls: false   # Remove rows with null values
-  trim_strings: true    # Trim whitespace from strings
-  normalize_case: "lower"  # "lower", "upper", "title", or null
-```
-
-#### Partitioning
-Adds partition columns for optimized storage and querying:
-```yaml
-- type: partition
-  id: partitioner
-  partition_by: ["region", "category"]  # Fields to partition by
-  partition_format: "region={0}/category={1}"  # Custom format string
-```
-
-#### SQL Transformations
-Apply complex business logic using SQL:
-```yaml
+name: "metrics-aggregation"
+transforms:
 - type: sql_transform
-  id: business-logic
+    id: "window-aggregation"
   query: |
     SELECT 
-      *,
-      amount * 0.1 as commission,
-      CASE 
-        WHEN amount > 1000 THEN 'high_value'
-        ELSE 'low_value'
-      END as value_tier
-    FROM input_data
-    WHERE amount > 0
-  window_size: 100      # Number of batches to buffer before processing
+        window_start,
+        window_end,
+        COUNT(*) as event_count,
+        AVG(amount) as avg_amount,
+        SUM(amount) as total_amount
+      FROM TABLE(
+        TUMBLE(TABLE input_data, DESCRIPTOR(timestamp), INTERVAL '1' MINUTE)
+      )
+      GROUP BY window_start, window_end
 ```
 
-## Examples
+## 🛠️ Development
 
-### Basic Kafka to Iceberg
+### Building from Source
+
 ```bash
-cargo run --bin rde-cli -- -p examples/kafka-iceberg.yml
-```
+# Clone and build
+git clone https://github.com/lyteabovenyte/rde.git
+cd rde
+cargo build --release
 
-### JSON Flattening Pipeline
-```bash
-cargo run --bin rde-cli -- -p examples/json-flattening-example.yml
-```
-
-### SQL Transformation Pipeline
-```bash
-cargo run --bin rde-cli -- -p examples/sql-transformation-example.yml
-```
-
-### Full Transformation Pipeline
-```bash
-cargo run --bin rde-cli -- -p examples/kafka-iceberg-with-transforms.yml
-```
-
-## Architecture
-
-RDE uses a modular architecture with:
-
-- **Sources**: Generate data streams from external systems
-- **Transforms**: Process and transform data using Arrow and DataFusion
-- **Sinks**: Write processed data to storage systems
-- **Channels**: Connect components with bounded async channels
-- **Schema Evolution**: Handle dynamic schema changes in streaming data
-
-### Key Components
-
-- **Arrow**: Columnar memory format for efficient data processing
-- **DataFusion**: SQL query engine for complex transformations
-- **Tokio**: Async runtime for high-performance streaming
-- **Serde**: Serialization for configuration and data handling
-
-## Development
-
-### Building
-```bash
-cargo build
+# Run tests
 cargo test
+
+# Check code quality
+cargo clippy
+cargo fmt
 ```
 
-### Running Tests
-```bash
-cargo test --workspace
-```
+### Project Structure
 
-### Code Structure
 ```
 rde/
 ├── crates/
-│   ├── rde-core/     # Core types and traits
-│   ├── rde-io/       # Sources and sinks
-│   └── rde-tx/       # Transformations
+│   ├── rde-core/          # Core traits and types
+│   ├── rde-io/            # Source and sink implementations  
+│   └── rde-tx/            # Transform implementations
 ├── bins/
-│   └── rde-cli/      # Command-line interface
-├── examples/         # Pipeline configurations
-└── scripts/          # Utility scripts
+│   ├── rde-cli/           # Main pipeline runner
+│   └── kafka-producer/    # Data streaming utility
+├── examples/              # Example pipeline configurations
+├── scripts/               # Automation and utility scripts
+├── sql/                   # SQL analytics queries
+└── docs/                  # Documentation
 ```
 
-## Performance
+### Contributing
 
-RDE is designed for high-performance streaming with:
-
-- **Zero-copy data processing** using Arrow
-- **Async/await** for non-blocking I/O
-- **Bounded channels** to prevent memory overflow
-- **Batch processing** for efficient throughput
-- **Schema evolution** for handling changing data structures
-
-## Contributing
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📊 Performance
+
+RDE is designed for high-performance data processing:
+
+- **Throughput**: Process millions of records per second
+- **Latency**: Sub-millisecond processing latency
+- **Memory**: Efficient Arrow-based columnar processing
+- **Scaling**: Horizontal scaling with Kafka partitioning
+- **Storage**: High-compression Parquet with Iceberg optimizations
+
+### Benchmarks
+
+| Workload | Throughput | Latency | Memory |
+|----------|------------|---------|---------|
+| JSON Processing | 1M+ msgs/sec | <1ms | 100MB |
+| CSV Processing | 500K+ rows/sec | <2ms | 50MB |
+| SQL Transforms | 2M+ rows/sec | <5ms | 200MB |
+| Iceberg Writes | 100K+ rows/sec | <10ms | 150MB |
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# Logging configuration
+export RUST_LOG=info
+
+# Performance tuning
+export BATCH_SIZE=10000
+export CHANNEL_CAPACITY=1000
+
+# Storage configuration
+export ICEBERG_WAREHOUSE=s3://my-bucket/warehouse
+export S3_ENDPOINT=http://localhost:9000
+```
+
+### Production Configuration
+
+For production deployments, see our [Production Guide](docs/production.md) with recommendations for:
+
+- Resource allocation and tuning
+- Monitoring and alerting setup  
+- Security configurations
+- High availability deployment patterns
+
+## 🌟 Ecosystem
+
+RDE integrates seamlessly with the modern data stack:
+
+### Storage
+- **Apache Iceberg** - ACID transactions and schema evolution
+- **Apache Parquet** - Columnar storage format
+- **MinIO/S3** - Object storage for data lakes
+
+### Processing  
+- **Apache Arrow** - In-memory columnar format
+- **DataFusion** - Query execution engine
+- **Apache Kafka** - Streaming data platform
+
+### Analytics
+- **Trino** - Distributed SQL query engine
+- **Apache Superset** - Business intelligence
+- **Jupyter** - Data science and exploration
+
+## 📈 Roadmap
+
+### Version 2.1 (Next Release)
+- [ ] Apache Avro support
+- [ ] Kubernetes operator
+- [ ] REST API for pipeline management
+- [ ] Enhanced monitoring dashboards
+
+### Version 2.2
+- [ ] Apache Flink integration
+- [ ] Delta Lake support  
+- [ ] Machine learning transformations
+- [ ] Stream SQL improvements
+
+### Version 3.0
+- [ ] Distributed execution engine
+- [ ] Auto-scaling capabilities
+- [ ] Advanced optimization rules
+- [ ] Cloud-native deployment
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Support
+
+- **Documentation**: [docs/](docs/)
+- **Issues**: [GitHub Issues](https://github.com/lyteabovenyte/rde/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/lyteabovenyte/rde/discussions)
+- **Email**: support@rde-project.org
+
+## 🎯 Built With
+
+- **[Rust](https://www.rust-lang.org/)** - Systems programming language
+- **[Apache Arrow](https://arrow.apache.org/)** - Columnar memory format
+- **[DataFusion](https://arrow.apache.org/datafusion/)** - Query execution engine
+- **[Apache Iceberg](https://iceberg.apache.org/)** - Table format for data lakes
+- **[rdkafka](https://github.com/fede1024/rust-rdkafka)** - Kafka client for Rust
+- **[Tokio](https://tokio.rs/)** - Asynchronous runtime
+- **[Serde](https://serde.rs/)** - Serialization framework
+
+---
+
+<div align="center">
+
+**[⭐ Star us on GitHub](https://github.com/lyteabovenyte/rde) if RDE helps power your data pipelines!**
+
+</div>

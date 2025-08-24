@@ -1,3 +1,41 @@
+//! # RDE CLI - Real-Time Data Engineering Pipeline Runner
+//!
+//! This is the main command-line interface for running RDE data processing pipelines.
+//! It loads YAML pipeline configurations and executes them with proper error handling,
+//! logging, and graceful shutdown capabilities.
+//!
+//! ## Features
+//!
+//! - **YAML Configuration**: Load pipeline specifications from YAML files
+//! - **Dynamic Schema Inference**: Automatic schema detection and evolution
+//! - **Graceful Shutdown**: Proper cleanup on CTRL-C or termination signals
+//! - **Comprehensive Logging**: Structured logging with configurable levels
+//! - **Error Recovery**: Robust error handling and recovery mechanisms
+//! - **Performance Monitoring**: Built-in metrics and performance tracking
+//!
+//! ## Usage
+//!
+//! ```bash
+//! # Run a pipeline from a YAML configuration file
+//! rde-cli --pipeline examples/kafka-to-iceberg.yml
+//!
+//! # Run with custom channel capacity for performance tuning
+//! rde-cli --pipeline my-pipeline.yml --channel-capacity 1000
+//!
+//! # Enable debug logging
+//! RUST_LOG=debug rde-cli --pipeline my-pipeline.yml
+//! ```
+//!
+//! ## Pipeline Configuration
+//!
+//! The CLI expects a YAML configuration file that defines:
+//! - Data sources (Kafka, CSV files, etc.)
+//! - Transformations (SQL, cleaning, partitioning, etc.)  
+//! - Data sinks (Iceberg, Parquet, stdout, etc.)
+//! - Connections between operators (edges)
+//!
+//! See the `examples/` directory for sample pipeline configurations.
+
 use anyhow::Result;
 use datafusion::arrow::datatypes::SchemaRef;
 use clap::Parser;
@@ -14,13 +52,36 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use object_store::ObjectStore;
 
 
+/// Command-line arguments for the RDE pipeline runner
 #[derive(Parser, Debug)]
+#[command(name = "rde-cli")]
+#[command(about = "Real-Time Data Engineering Pipeline Runner")]
+#[command(long_about = "
+RDE CLI executes data processing pipelines defined in YAML configuration files.
+It supports various data sources, transformations, and sinks with automatic
+schema evolution and high-performance streaming processing.
+
+Examples:
+  rde-cli --pipeline examples/kafka-to-iceberg.yml
+  rde-cli -p my-pipeline.yml --channel-capacity 1000
+  RUST_LOG=debug rde-cli --pipeline complex-pipeline.yml
+")]
 struct Args {
-    /// Pipeline YAML
+    /// Path to the pipeline YAML configuration file
+    /// 
+    /// The YAML file should define sources, transforms, sinks, and their connections.
+    /// See examples/ directory for sample configurations.
     #[arg(short, long)]
+    #[arg(help = "Pipeline YAML configuration file")]
     pipeline: PathBuf,
-    /// Bounded channel capacity between operators
+    
+    /// Channel capacity between pipeline operators
+    /// 
+    /// Controls the buffer size for message passing between operators.
+    /// Higher values improve throughput but use more memory.
+    /// Lower values reduce memory usage but may cause backpressure.
     #[arg(long, default_value_t = 8)]
+    #[arg(help = "Buffer size for operator message channels")]
     channel_capacity: usize,
 }
 #[tokio::main]

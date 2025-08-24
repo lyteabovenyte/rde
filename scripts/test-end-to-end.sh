@@ -31,8 +31,8 @@ check_service() {
 
 # Step 1: Check infrastructure
 echo -e "${YELLOW}📋 Checking infrastructure...${NC}"
-check_service "Kafka" "localhost" "9092" || { echo "Start with: docker-compose up -d"; exit 1; }
-check_service "MinIO" "localhost" "9000" || { echo "Start with: docker-compose up -d"; exit 1; }
+check_service "Kafka" "localhost" "9092" || { echo "Start with: docker-compose -f docker/docker-compose.yml up -d"; exit 1; }
+check_service "MinIO" "localhost" "9000" || { echo "Start with: docker-compose -f docker/docker-compose.yml up -d"; exit 1; }
 
 # Step 2: Create test data
 echo -e "${YELLOW}📊 Creating test data...${NC}"

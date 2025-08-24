@@ -13,7 +13,7 @@ fi
 # Check if Kafka is running
 if ! docker ps | grep -q kafka; then
     echo "Starting Kafka..."
-    docker compose up -d
+    docker compose -f docker/docker-compose.yml up -d
     sleep 10
 fi
 

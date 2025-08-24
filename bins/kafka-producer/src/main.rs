@@ -1,3 +1,60 @@
+//! # Kafka Producer - High-Performance Data Streaming Utility
+//!
+//! This utility provides a flexible and high-performance way to stream JSON data
+//! from files into Apache Kafka topics. It's designed to support various JSON formats,
+//! batch processing, and comprehensive error handling for testing and production use.
+//!
+//! ## Features
+//!
+//! - **Multiple JSON Formats**: Support for JSON objects, arrays, and NDJSON
+//! - **Batch Processing**: Configurable batch sizes for optimal throughput
+//! - **File Globbing**: Process multiple files with glob patterns
+//! - **Progress Tracking**: Real-time progress reporting with configurable intervals
+//! - **Error Handling**: Robust error handling with retry logic
+//! - **Performance Tuning**: Configurable delays and batch sizes
+//! - **Dry Run Mode**: Test configurations without sending data
+//!
+//! ## Supported JSON Formats
+//!
+//! ### JSON Object (json)
+//! Single JSON object per file:
+//! ```json
+//! {"id": 1, "name": "Alice", "age": 30}
+//! ```
+//!
+//! ### JSON Array (json_array) 
+//! Array of JSON objects:
+//! ```json
+//! [
+//!   {"id": 1, "name": "Alice"},
+//!   {"id": 2, "name": "Bob"}
+//! ]
+//! ```
+//!
+//! ### NDJSON (ndjson)
+//! Newline-delimited JSON objects:
+//! ```
+//! {"id": 1, "name": "Alice"}
+//! {"id": 2, "name": "Bob"}
+//! {"id": 3, "name": "Charlie"}
+//! ```
+//!
+//! ## Usage Examples
+//!
+//! ```bash
+//! # Stream NDJSON file to Kafka topic
+//! kafka-producer -i data.ndjson -t my-topic -f ndjson
+//!
+//! # Stream multiple files with progress tracking
+//! kafka-producer -i "data/*.json" -t events -f json_array -p 1000
+//!
+//! # High-throughput streaming with custom batch size
+//! kafka-producer -i large-dataset.ndjson -t stream -f ndjson -b 1000 -d 10
+//!
+//! # Dry run to test configuration
+//! kafka-producer -i test.json -t test-topic -f json --dry-run
+//! ```
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use glob::glob;

@@ -23,7 +23,7 @@ check_kafka() {
     echo -e "${YELLOW}Checking if Kafka is running...${NC}"
     if ! nc -z localhost 9092 2>/dev/null; then
         echo -e "${RED}Error: Kafka doesn't seem to be running on localhost:9092${NC}"
-        echo "Please run: docker-compose up -d"
+        echo "Please run: docker-compose -f docker/docker-compose.yml up -d"
         exit 1
     fi
     echo -e "${GREEN}✓ Kafka is running${NC}"

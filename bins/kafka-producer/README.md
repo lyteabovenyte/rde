@@ -92,7 +92,7 @@ To test the full pipeline:
 
 1. Start the infrastructure:
    ```bash
-   docker-compose up -d
+   docker-compose -f docker/docker-compose.yml up -d
    scripts/start-minio.sh
    ```
 

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Existing services from main docker-compose.yml
+  # Existing services from docker/docker-compose.yml
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     environment:
@@ -40,8 +40,8 @@ services:
     environment:
       - CATALOG_MANAGEMENT=dynamic
     volumes:
-      - ./trino/etc:/etc/trino:ro
-      - ./trino/catalog:/etc/trino/catalog:ro
+      - ../trino/etc:/etc/trino:ro
+      - ../trino/catalog:/etc/trino/catalog:ro
     depends_on:
       - minio
 
@@ -51,8 +51,8 @@ services:
     environment:
       - CATALOG_MANAGEMENT=dynamic
     volumes:
-      - ./trino/etc:/etc/trino:ro
-      - ./trino/catalog:/etc/trino/catalog:ro
+      - ../trino/etc:/etc/trino:ro
+      - ../trino/catalog:/etc/trino/catalog:ro
     depends_on:
       - trino-coordinator
 
