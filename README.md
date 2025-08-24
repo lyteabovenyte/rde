@@ -448,7 +448,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: [docs/](docs/)
 - **Issues**: [GitHub Issues](https://github.com/lyteabovenyte/rde/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/lyteabovenyte/rde/discussions)
-- **Email**: support@rde-project.org
+- **Email**: [Email](mailto:lyteabovenyte@gmail.com)
 
 ## 🎯 Built With
 
