@@ -1,469 +1,229 @@
-# RDE - Rust Data Engineering
+# RDE - Rust Data Engineering Pipeline
 
-<div align="center">
-
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/lyteabovenyte/rde)
-[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
-[![Apache Arrow](https://img.shields.io/badge/Apache%20Arrow-55.2.0-red.svg)](https://arrow.apache.org)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-
-**High-Performance Real-Time Data Engineering Pipeline in Rust**
-
-*Building the future of streaming data processing with Apache Arrow, DataFusion, and Apache Iceberg*
-
-[Features](#-features) •
-[Quick Start](#-quick-start) •
-[Architecture](#-architecture) •
-[Documentation](#-documentation) •
-[Examples](#-examples) •
-[Contributing](#-contributing)
-
-</div>
-
----
-
-## 🚀 Overview
-
-RDE (Rust Data Engineering) is a high-performance, real-time data engineering framework built in Rust. It provides a complete solution for streaming data processing, from ingestion through transformation to storage, leveraging the power of Apache Arrow, DataFusion, and Apache Iceberg.
-
-### Why RDE?
-
-- **🏃‍♂️ High Performance**: Built with Rust for maximum speed and memory efficiency
-- **🔄 Real-Time Processing**: Stream processing with millisecond latencies
-- **📊 Modern Data Stack**: Apache Arrow, DataFusion, and Iceberg integration
-- **🧩 Modular Architecture**: Composable operators for flexible pipeline construction
-- **🛡️ Type Safety**: Compile-time guarantees for data pipeline correctness
-- **📈 Scalable**: Horizontal scaling with Kafka and distributed processing
-- **🔍 Observable**: Built-in metrics, logging, and monitoring capabilities
-
-## ✨ Features
-
-### 🎯 Data Sources
-- **Kafka**: Real-time streaming with JSON schema inference and evolution
-- **CSV Files**: Batch processing with automatic schema detection
-- **Custom Sources**: Extensible source interface for any data system
-
-### 🔧 Transformations
-- **Schema Evolution**: Dynamic schema inference and evolution for changing data
-- **JSON Flattening**: Convert nested JSON to flat relational structures
-- **SQL Transformations**: Complex business logic using DataFusion SQL engine
-- **Data Cleaning**: Remove nulls, trim strings, normalize case, and more
-- **Partitioning**: Add partition columns for optimized analytics
-- **Custom Transforms**: Build domain-specific transformations
-
-### 💾 Data Sinks
-- **Apache Iceberg**: Production-grade data lake tables with ACID transactions
-- **Parquet**: High-performance columnar storage with compression
-- **Console Output**: Development and debugging support
-- **Custom Sinks**: Extensible sink interface for any target system
-
-### 🎛️ Advanced Features
-- **Topic-to-Table Mapping**: Direct Kafka-to-Iceberg streaming
-- **Automatic Schema Evolution**: Handle changing data structures seamlessly
-- **SQL Analytics**: Query your data with Trino and DataGrip integration
-- **Monitoring**: Comprehensive observability and health monitoring
-- **Production Ready**: Docker deployment with infrastructure automation
-
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    subgraph "Data Sources"
-        K[Kafka Topics]
-        C[CSV Files]
-        A[APIs]
-    end
-    
-    subgraph "RDE Pipeline"
-        S[Source Operators]
-        T[Transform Operators]
-        SI[Sink Operators]
-        S --> T --> SI
-    end
-    
-    subgraph "Data Lake"
-        I[Apache Iceberg]
-        P[Parquet Files]
-        M[MinIO/S3]
-    end
-    
-    subgraph "Analytics"
-        TR[Trino]
-        DG[DataGrip]
-        BI[BI Tools]
-    end
-    
-    K --> S
-    C --> S
-    A --> S
-    
-    SI --> I
-    SI --> P
-    I --> M
-    P --> M
-    
-    M --> TR
-    TR --> DG
-    TR --> BI
-```
-
-### Core Components
-
-- **Pipeline Engine**: High-performance message passing between operators
-- **Schema Registry**: Automatic schema inference and evolution tracking
-- **Transformation Engine**: DataFusion-powered SQL and custom transformations
-- **Storage Layer**: Apache Iceberg integration with ACID guarantees
-- **Query Engine**: Trino integration for SQL analytics
+A simplified, high-performance data engineering pipeline built in Rust for streaming JSON data to analytics-ready formats.
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- **Rust 1.70+** - [Install Rust](https://rustup.rs/)
-- **Docker** - [Install Docker](https://docs.docker.com/get-docker/)
-- **Git** - Version control
-
-### Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/lyteabovenyte/rde.git
-cd rde
+# 1. Run the complete pipeline (auto-discovers JSON datasets)
+./scripts/supreme-pipeline.sh
 
-# Build the project
-cargo build --release
+# 2. Query your data with DuckDB
+./scripts/query-data.py
 
-# Start infrastructure (Kafka, MinIO, Trino)
-docker-compose -f docker/docker-compose.yml up -d
+# 3. Interactive SQL mode
+./scripts/query-data.py --interactive
 ```
 
-### Your First Pipeline
+That's it! The pipeline will auto-discover JSON files, stream them through Kafka, process them into Parquet format, and make them queryable via DuckDB.
 
-1. **Create a simple pipeline configuration:**
+## 📊 What It Does
 
-```yaml
-# examples/my-first-pipeline.yml
-name: "my-first-pipeline"
-sources:
-  - type: kafka
-    id: "kafka-source"
-    brokers: "localhost:9092"
-    group_id: "my-pipeline-group"
-    topic: "input-data"
+The RDE pipeline automatically:
 
-transforms:
-  - type: clean_data
-    id: "clean-data"
-    remove_nulls: true
-    trim_strings: true
+1. **🔍 Auto-discovers** JSON datasets in `data/json-samples/`
+2. **📡 Creates Kafka topics** for each dataset
+3. **🔄 Streams data** from JSON → Kafka → RDE → MinIO
+4. **📦 Converts to Parquet** format in Iceberg table structure
+5. **📝 Generates SQL templates** for immediate analytics
+6. **🎯 Enables DuckDB queries** directly on S3/MinIO data
 
-sinks:
-  - type: iceberg
-    id: "iceberg-sink"
-    table_name: "my_table"
-    bucket: "iceberg-data"
-    endpoint: "http://localhost:9000"
-    access_key: "minioadmin"
-    secret_key: "minioadmin"
-    region: "us-east-1"
+## 🏗️ Architecture
 
-edges:
-  - ["kafka-source", "clean-data"]
-  - ["clean-data", "iceberg-sink"]
+```
+JSON Files → Kafka Topics → RDE Pipeline → MinIO (S3) → DuckDB Analytics
+    ✅           ✅              ⚠️             ✅         ✅
 ```
 
-2. **Run the pipeline:**
+**Status**: End-to-end working system with a known Parquet writing bug in the RDE pipeline (see [RDE_STATUS.md](RDE_STATUS.md))
 
-```bash
-cargo run --bin rde-cli -- --pipeline examples/my-first-pipeline.yml
-```
+### Components
 
-3. **Stream some test data:**
+- **Kafka**: Message streaming and buffering
+- **MinIO**: S3-compatible object storage
+- **RDE**: Rust-based data processing engine
+- **DuckDB**: Fast analytical SQL engine with S3 support
+- **Docker**: Containerized infrastructure
 
-```bash
-# Generate and stream test data
-echo '{"id": 1, "name": "Alice", "age": 30}' | \
-cargo run --bin kafka-producer -- \
-  --input /dev/stdin \
-  --topic input-data \
-  --format ndjson
-```
-
-4. **Query your data:**
-
-```bash
-# Start Trino for SQL analytics
-./scripts/setup-trino.sh
-
-# Query your data
-./scripts/run-sql.sh "SELECT * FROM iceberg.default.my_table"
-```
-
-## 📖 Documentation
-
-### API Documentation
-
-Generate and view the complete API documentation:
-
-```bash
-cargo doc --open
-```
-
-### Configuration Reference
-
-- **[Pipeline Configuration](docs/configuration.md)** - Complete YAML configuration reference
-- **[Source Operators](docs/sources.md)** - Available data source connectors
-- **[Transform Operators](docs/transforms.md)** - Data transformation options
-- **[Sink Operators](docs/sinks.md)** - Output destination configurations
-
-### Guides
-
-- **[Getting Started Guide](docs/getting-started.md)** - Step-by-step tutorial
-- **[Schema Evolution](docs/schema-evolution.md)** - Handling changing data structures
-- **[SQL Transformations](docs/sql-transforms.md)** - Using DataFusion SQL
-- **[Iceberg Integration](docs/iceberg.md)** - Working with data lakes
-- **[Monitoring & Observability](docs/monitoring.md)** - Production monitoring
-- **[Performance Tuning](docs/performance.md)** - Optimization guidelines
-
-### Integration Guides
-
-- **[Trino + DataGrip Setup](TRINO-DATAGRIP-SETUP.md)** - SQL analytics setup
-- **[Kafka Integration](docs/kafka.md)** - Streaming data ingestion
-- **[Docker Deployment](docs/deployment.md)** - Production deployment guide
-
-## 💡 Examples
-
-### Real-Time Analytics Pipeline
-
-Process live e-commerce events with schema evolution:
-
-```yaml
-name: "ecommerce-analytics"
-sources:
-  - type: kafka
-    id: "events-source"
-    brokers: "localhost:9092"
-    topic: "user-events"
-    topic_mapping:
-      iceberg_table: "user_events"
-      auto_schema_evolution: true
-      sql_transform: |
-        SELECT 
-          user_id,
-          event_type,
-          timestamp,
-          CASE 
-            WHEN event_type = 'purchase' THEN amount
-            ELSE 0 
-          END as revenue,
-          DATE(timestamp) as partition_date
-        FROM input_data
-        WHERE user_id IS NOT NULL
-```
-
-### Batch ETL Pipeline
-
-Process large CSV files with transformations:
-
-```yaml
-name: "sales-etl"
-sources:
-  - type: csv
-    id: "sales-files"
-    path: "data/sales/*.csv"
-    has_header: true
-    batch_rows: 10000
-
-transforms:
-  - type: sql_transform
-    id: "enrich-sales"
-    query: |
-        SELECT 
-          *,
-        amount * 1.1 as amount_with_tax,
-        CASE 
-          WHEN amount > 1000 THEN 'high-value'
-          ELSE 'standard'
-        END as order_tier
-      FROM input_data
-```
-
-### Stream Processing with Windowing
-
-Real-time aggregations with time windows:
-
-```yaml
-name: "metrics-aggregation"
-transforms:
-- type: sql_transform
-    id: "window-aggregation"
-  query: |
-    SELECT 
-        window_start,
-        window_end,
-        COUNT(*) as event_count,
-        AVG(amount) as avg_amount,
-        SUM(amount) as total_amount
-      FROM TABLE(
-        TUMBLE(TABLE input_data, DESCRIPTOR(timestamp), INTERVAL '1' MINUTE)
-      )
-      GROUP BY window_start, window_end
-```
-
-## 🛠️ Development
-
-### Building from Source
-
-```bash
-# Clone and build
-git clone https://github.com/lyteabovenyte/rde.git
-cd rde
-cargo build --release
-
-# Run tests
-cargo test
-
-# Check code quality
-cargo clippy
-cargo fmt
-```
-
-### Project Structure
+## 📁 Project Structure (Simplified)
 
 ```
 rde/
-├── crates/
-│   ├── rde-core/          # Core traits and types
-│   ├── rde-io/            # Source and sink implementations  
-│   └── rde-tx/            # Transform implementations
-├── bins/
-│   ├── rde-cli/           # Main pipeline runner
-│   └── kafka-producer/    # Data streaming utility
-├── examples/              # Example pipeline configurations
-├── scripts/               # Automation and utility scripts
-├── sql/                   # SQL analytics queries
-└── docs/                  # Documentation
+├── scripts/
+│   ├── supreme-pipeline.sh     # 🚀 Main pipeline orchestrator
+│   └── query-data.py          # 🔍 DuckDB analytics tool
+├── crates/                    # 🦀 Rust workspace
+│   ├── rde-core/             # Core pipeline logic
+│   ├── rde-io/               # Kafka/MinIO connectors
+│   └── rde-tx/               # Data transformations
+├── examples/                  # 📋 Pipeline configurations
+├── sql/templates/            # 📝 Auto-generated SQL templates
+├── data/json-samples/        # 📂 Your JSON data goes here
+└── docker-compose.yml        # 🐳 Infrastructure stack
 ```
 
-### Contributing
+## 🔧 Usage Guide
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+### 1. Add Your Data
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📊 Performance
-
-RDE is designed for high-performance data processing:
-
-- **Throughput**: Process millions of records per second
-- **Latency**: Sub-millisecond processing latency
-- **Memory**: Efficient Arrow-based columnar processing
-- **Scaling**: Horizontal scaling with Kafka partitioning
-- **Storage**: High-compression Parquet with Iceberg optimizations
-
-### Benchmarks
-
-| Workload | Throughput | Latency | Memory |
-|----------|------------|---------|---------|
-| JSON Processing | 1M+ msgs/sec | <1ms | 100MB |
-| CSV Processing | 500K+ rows/sec | <2ms | 50MB |
-| SQL Transforms | 2M+ rows/sec | <5ms | 200MB |
-| Iceberg Writes | 100K+ rows/sec | <10ms | 150MB |
-
-## 🔧 Configuration
-
-### Environment Variables
+Place JSON files in `data/json-samples/`. Supported formats:
 
 ```bash
-# Logging configuration
-export RUST_LOG=info
+# JSON Array format
+data/json-samples/retail.json     # [{"id": 1}, {"id": 2}]
 
-# Performance tuning
-export BATCH_SIZE=10000
-export CHANNEL_CAPACITY=1000
+# NDJSON format
+data/json-samples/flights.json    # {"flight": "AA123"}\n{"flight": "BB456"}
 
-# Storage configuration
-export ICEBERG_WAREHOUSE=s3://my-bucket/warehouse
-export S3_ENDPOINT=http://localhost:9000
+# Nested objects
+data/json-samples/spotify.json    # {"audio_features": [{"id": 1}, {"id": 2}]}
 ```
 
-### Production Configuration
+### 2. Run the Pipeline
 
-For production deployments, see our [Production Guide](docs/production.md) with recommendations for:
+```bash
+./scripts/supreme-pipeline.sh
+```
 
-- Resource allocation and tuning
-- Monitoring and alerting setup  
-- Security configurations
-- High availability deployment patterns
+This will:
 
-## 🌟 Ecosystem
+- Start Kafka, MinIO, and Zookeeper
+- Create topics for each JSON file
+- Stream data through the pipeline
+- Monitor progress and show completion status
 
-RDE integrates seamlessly with the modern data stack:
+### 3. Query Your Data
 
-### Storage
-- **Apache Iceberg** - ACID transactions and schema evolution
-- **Apache Parquet** - Columnar storage format
-- **MinIO/S3** - Object storage for data lakes
+```bash
+# Quick data exploration
+./scripts/query-data.py
 
-### Processing  
-- **Apache Arrow** - In-memory columnar format
-- **DataFusion** - Query execution engine
-- **Apache Kafka** - Streaming data platform
+# Interactive SQL mode
+./scripts/query-data.py --interactive
+```
 
-### Analytics
-- **Trino** - Distributed SQL query engine
-- **Apache Superset** - Business intelligence
-- **Jupyter** - Data science and exploration
+### 4. Example Queries
 
-## 📈 Roadmap
+The system generates these automatically, but here are some examples:
 
-### Version 2.1 (Next Release)
-- [ ] Apache Avro support
-- [ ] Kubernetes operator
-- [ ] REST API for pipeline management
-- [ ] Enhanced monitoring dashboards
+```sql
+-- Count records in a dataset
+SELECT COUNT(*) FROM 's3://retail/**/*.parquet';
 
-### Version 2.2
-- [ ] Apache Flink integration
-- [ ] Delta Lake support  
-- [ ] Machine learning transformations
-- [ ] Stream SQL improvements
+-- Sample data preview
+SELECT * FROM 's3://flights/**/*.parquet' LIMIT 10;
 
-### Version 3.0
-- [ ] Distributed execution engine
-- [ ] Auto-scaling capabilities
-- [ ] Advanced optimization rules
-- [ ] Cloud-native deployment
+-- Schema information
+DESCRIBE SELECT * FROM 's3://spotify/**/*.parquet';
 
-## 📄 License
+-- Cross-dataset analysis
+SELECT
+    'retail' as dataset, COUNT(*) as records
+FROM 's3://retail/**/*.parquet'
+UNION ALL
+SELECT
+    'flights' as dataset, COUNT(*) as records
+FROM 's3://flights/**/*.parquet';
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🌐 Service Access
 
-## 🤝 Support
+| Service       | URL                   | Credentials             |
+| ------------- | --------------------- | ----------------------- |
+| MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
+| Kafka         | localhost:9092        | N/A                     |
 
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/lyteabovenyte/rde/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/lyteabovenyte/rde/discussions)
-- **Email**: [Email](mailto:lyteabovenyte@gmail.com)
+## 🚦 Current Status
 
-## 🎯 Built With
+### ✅ **Working Components**
 
-- **[Rust](https://www.rust-lang.org/)** - Systems programming language
-- **[Apache Arrow](https://arrow.apache.org/)** - Columnar memory format
-- **[DataFusion](https://arrow.apache.org/datafusion/)** - Query execution engine
-- **[Apache Iceberg](https://iceberg.apache.org/)** - Table format for data lakes
-- **[rdkafka](https://github.com/fede1024/rust-rdkafka)** - Kafka client for Rust
-- **[Tokio](https://tokio.rs/)** - Asynchronous runtime
-- **[Serde](https://serde.rs/)** - Serialization framework
+- Auto dataset discovery and Kafka topic creation
+- JSON data streaming and processing
+- MinIO storage integration
+- DuckDB analytics with S3 connectivity
+- Interactive SQL queries
+- Auto-generated query templates
+
+### ⚠️ **Known Issues**
+
+- **RDE Pipeline Bug**: Parquet files may be written incorrectly for some datasets (especially `flights`)
+- **Schema Evolution**: Dynamic schema handling needs improvement
+- See [RDE_STATUS.md](RDE_STATUS.md) for detailed status
+
+### 🔄 **Workaround**
+
+The system works end-to-end. For datasets affected by the RDE bug, the pipeline will still run, and you can inspect the data structure in MinIO.
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Docker & Docker Compose
+- Rust 1.70+
+- Python 3.8+ (for DuckDB queries)
+
+### Build
+
+```bash
+cargo build --release --bin rde-cli --bin kafka-producer
+```
+
+### Add New Data Sources
+
+1. Place JSON files in `data/json-samples/`
+2. Run `./scripts/supreme-pipeline.sh`
+3. Query with `./scripts/query-data.py`
+
+### Custom Pipeline Configuration
+
+Check `examples/` directory for sample YAML configurations.
+
+## 🎯 Design Philosophy
+
+**Simple. Automated. Rust-powered.**
+
+- **Zero Configuration**: Just drop JSON files and run
+- **Auto-Discovery**: Pipeline discovers and adapts to your data
+- **Performance**: Rust-based processing with minimal overhead
+- **Analytics-Ready**: Direct DuckDB querying without data movement
+
+## 🆘 Troubleshooting
+
+### Pipeline Won't Start
+
+```bash
+# Check Docker services
+docker-compose ps
+
+# View logs
+docker-compose logs
+```
+
+### No Data in Queries
+
+```bash
+# Check MinIO buckets
+curl http://localhost:9001
+# Login: minioadmin/minioadmin
+
+# Check pipeline logs
+ls logs/
+tail logs/*-pipeline.log
+```
+
+### Query Errors
+
+```bash
+# Verify Python dependencies
+./scripts/query-data.py --help
+
+# Check S3 connectivity
+./scripts/query-data.py --interactive
+# Run: SELECT 1; -- test basic DuckDB
+```
 
 ---
 
-<div align="center">
+**Ready to process your JSON data at scale?** 🚀
 
-**[⭐ Star us on GitHub](https://github.com/lyteabovenyte/rde) if RDE helps power your data pipelines!**
-
-</div>
+Drop your files in `data/json-samples/` and run `./scripts/supreme-pipeline.sh`!
