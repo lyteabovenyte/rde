@@ -146,9 +146,8 @@ FROM 's3://flights/**/*.parquet';
 
 ### ⚠️ **Known Issues**
 
-- **RDE Pipeline Bug**: Parquet files may be written incorrectly for some datasets (especially `flights`)
+- **RDE Pipeline Bug**: Parquet files may be written incorrectly for some datasets
 - **Schema Evolution**: Dynamic schema handling needs improvement
-- See [RDE_STATUS.md](RDE_STATUS.md) for detailed status
 
 ### 🔄 **Workaround**
 
