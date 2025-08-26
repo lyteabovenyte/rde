@@ -218,23 +218,30 @@ data/.DS_Store
 notes/
 # MSVC Windows builds of rustc generate these, which store debugging information
 
-# Large JSON sample files (too big for GitHub)
-data/json-samples/flights.json
-data/json-samples/retail.json
-
 # Logs directory
 logs/
 
 # Temporary files
 /tmp/
-/data
+
+# Data directories
 data/*
-data/json-samples/flights.json
-data/json-samples/retail.json
-data/json-samples/spotify.json
-data/json-samples/flights.json
-data/json-samples/retail.json
-data/json-samples/spotify.json
-data
+!data/sources/
+!data/sources/bitcoin/
+!data/sources/news/
+
+# API keys and sensitive configuration
+.env
+*.key
+api_keys.txt
+secrets/
+
+# Collector data and cache
+collector_cache/
+api_responses/
+
+# Development artifacts
+*.log
+*.pid
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,python,data,database,redis
