@@ -1,5 +1,5 @@
-name: "supreme-rde-pipeline"
-description: "Auto-discovery pipeline for all JSON datasets in data/json-samples"
+name: "crypto-realtime-pipeline"
+description: "Real-time blockchain and crypto news data pipeline"
 
 # Global configuration
 config:
@@ -7,156 +7,124 @@ config:
     brokers: "localhost:9092"
     replication_factor: 1
     partitions: 3
-  
+
   storage:
     endpoint: "http://localhost:9000"
     access_key: "minioadmin"
     secret_key: "minioadmin"
     region: "us-east-1"
-  
+
   processing:
     batch_size: 1000
     auto_schema_evolution: true
     data_cleaning: true
 
-# Flight data pipeline
+# Data sources
 sources:
+  # Bitcoin market data source
   - type: kafka
-    id: "flights-source"
-    brokers: "${config.kafka.brokers}"
-    group_id: "rde-flights-group"
-    topic: "flights"
+    id: "bitcoin-market-source"
+    brokers: "localhost:9092"
+    group_id: "rde-bitcoin-market-group"
+    topic: "bitcoin-market"
     schema:
       auto_infer: true
 
+  # Crypto news data source
+  - type: kafka
+    id: "crypto-news-source"
+    brokers: "localhost:9092"
+    group_id: "rde-crypto-news-group"
+    topic: "crypto-news"
+    schema:
+      auto_infer: true
+
+# Data transformations
 transforms:
+  # Bitcoin market data cleaning
   - type: clean_data
-    id: "clean-flights"
+    id: "clean-bitcoin-market"
     remove_nulls: true
     trim_strings: true
 
-sinks:
-  - type: iceberg
-    id: "flights-sink"
-    table_name: "flights"
-    bucket: "flights"
-    endpoint: "${config.storage.endpoint}"
-    access_key: "${config.storage.access_key}"
-    secret_key: "${config.storage.secret_key}"
-    region: "${config.storage.region}"
+  # Bitcoin market data enrichment
+  - type: sql_transform
+    id: "enrich-bitcoin-market"
+    query: |
+      SELECT 
+        *,
+        CURRENT_TIMESTAMP as ingestion_time,
+        DATE(timestamp) as partition_date,
+        EXTRACT(HOUR FROM timestamp) as partition_hour,
+        CASE 
+          WHEN price_change_24h > 0 THEN 'bullish'
+          WHEN price_change_24h < 0 THEN 'bearish'
+          ELSE 'neutral'
+        END as market_sentiment,
+        ROUND(volume_24h / 1000000, 2) as volume_millions
+      FROM input_data
+      WHERE price IS NOT NULL AND timestamp IS NOT NULL
 
-edges:
-  - ["flights-source", "clean-flights"]
-  - ["clean-flights", "flights-sink"]
-
----
-# Retail data pipeline
-name: "retail-pipeline"
-sources:
-  - type: kafka
-    id: "retail-source"
-    brokers: "localhost:9092"
-    group_id: "rde-retail-group" 
-    topic: "retail"
-    schema:
-      auto_infer: true
-
-transforms:
+  # Crypto news data cleaning
   - type: clean_data
-    id: "clean-retail"
+    id: "clean-crypto-news"
     remove_nulls: true
     trim_strings: true
     normalize_case: "lower"
 
+  # Crypto news data enrichment
+  - type: sql_transform
+    id: "enrich-crypto-news"
+    query: |
+      SELECT 
+        *,
+        CURRENT_TIMESTAMP as ingestion_time,
+        DATE(published_at) as partition_date,
+        EXTRACT(HOUR FROM published_at) as partition_hour,
+        CASE 
+          WHEN sentiment_score > 0.3 THEN 'positive'
+          WHEN sentiment_score < -0.3 THEN 'negative'
+          ELSE 'neutral'
+        END as sentiment_category,
+        ARRAY_LENGTH(keywords) as keyword_count,
+        CASE 
+          WHEN source IN ('coindesk', 'cointelegraph', 'bitcoin.com') THEN 'major'
+          WHEN source IN ('cryptopanic', 'cryptonews') THEN 'aggregator'
+          ELSE 'other'
+        END as source_category
+      FROM input_data
+      WHERE title IS NOT NULL AND published_at IS NOT NULL
+
+# Data sinks
 sinks:
+  # Bitcoin market data sink
   - type: iceberg
-    id: "retail-sink"
-    table_name: "retail"
-    bucket: "retail"
+    id: "bitcoin-market-sink"
+    table_name: "bitcoin_market_data"
+    bucket: "crypto-data"
     endpoint: "http://localhost:9000"
     access_key: "minioadmin"
     secret_key: "minioadmin"
     region: "us-east-1"
 
-edges:
-  - ["retail-source", "clean-retail"]
-  - ["clean-retail", "retail-sink"]
-
----
-# Spotify data pipeline with advanced transformations
-name: "spotify-pipeline"
-sources:
-  - type: kafka
-    id: "spotify-source"
-    brokers: "localhost:9092"
-    group_id: "rde-spotify-group"
-    topic: "spotify"
-    topic_mapping:
-      iceberg_table: "spotify_audio_features"
-      bucket: "spotify"
-      endpoint: "http://localhost:9000"
-      access_key: "minioadmin"
-      secret_key: "minioadmin"
-      region: "us-east-1"
-      auto_schema_evolution: true
-      sql_transform: |
-        SELECT 
-          id as track_id,
-          danceability,
-          energy,
-          key as musical_key,
-          loudness,
-          mode as musical_mode,
-          speechiness,
-          acousticness,
-          instrumentalness,
-          liveness,
-          valence as positivity,
-          tempo,
-          time_signature,
-          duration_ms as duration_milliseconds,
-          ROUND(duration_ms / 1000.0, 2) as duration_seconds,
-          CASE 
-            WHEN danceability > 0.7 THEN 'highly_danceable'
-            WHEN danceability > 0.5 THEN 'danceable'
-            ELSE 'not_danceable'
-          END as danceability_category,
-          CASE 
-            WHEN energy > 0.7 THEN 'high_energy'
-            WHEN energy > 0.4 THEN 'medium_energy'
-            ELSE 'low_energy'
-          END as energy_category,
-          CASE 
-            WHEN valence > 0.7 THEN 'positive'
-            WHEN valence > 0.4 THEN 'neutral'
-            ELSE 'negative'
-          END as mood_category,
-          CASE 
-            WHEN tempo > 120 THEN 'fast'
-            WHEN tempo > 80 THEN 'medium'
-            ELSE 'slow'
-          END as tempo_category,
-          current_date as partition_date
-        FROM input_data
-        WHERE id IS NOT NULL
-      partition_by: ["energy_category", "danceability_category"]
-
-transforms:
-  - type: clean_data
-    id: "clean-spotify"
-    remove_nulls: true
-    trim_strings: true
-
-sinks:
+  # Crypto news data sink
   - type: iceberg
-    id: "spotify-sink"
-    table_name: "spotify_audio_features"
-    bucket: "spotify"
+    id: "crypto-news-sink"
+    table_name: "crypto_news_data"
+    bucket: "crypto-data"
     endpoint: "http://localhost:9000"
     access_key: "minioadmin"
     secret_key: "minioadmin"
     region: "us-east-1"
 
+# Pipeline connections
 edges:
-  - ["spotify-source", "clean-spotify"]
-  - ["clean-spotify", "spotify-sink"]
+  # Bitcoin market data flow
+  - ["bitcoin-market-source", "clean-bitcoin-market"]
+  - ["clean-bitcoin-market", "enrich-bitcoin-market"]
+  - ["enrich-bitcoin-market", "bitcoin-market-sink"]
+
+  # Crypto news data flow
+  - ["crypto-news-source", "clean-crypto-news"]
+  - ["clean-crypto-news", "enrich-crypto-news"]
+  - ["enrich-crypto-news", "crypto-news-sink"]
