@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use anyhow::Result;
 use reqwest::Client;
 use serde_json::Value;
@@ -22,6 +24,10 @@ async fn main() -> Result<()> {
     
     let ticker_data: Value = ticker_response.json().await?;
     println!("Successfully fetched ticker data!");
+    
+    // Print the full response structure for analysis
+    println!("Full response structure:");
+    println!("{}", serde_json::to_string_pretty(&ticker_data).unwrap());
 
     // Define the currencies we want to collect (major ones)
     let target_currencies = ["USD", "EUR", "GBP", "JPY", "CNY", "CAD", "AUD", "CHF"];
