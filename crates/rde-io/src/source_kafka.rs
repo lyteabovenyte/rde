@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use rdkafka::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::error::KafkaError;

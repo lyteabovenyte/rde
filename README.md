@@ -1,41 +1,41 @@
 # RDE - Rust Data Engineering Pipeline
 
-A simplified, high-performance data engineering pipeline built in Rust for streaming JSON data to analytics-ready formats.
+A high-performance, real-time data engineering pipeline built in Rust for streaming blockchain and crypto data to analytics-ready formats.
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Run the complete pipeline (auto-discovers JSON datasets)
+# 1. Start the crypto real-time pipeline
 ./scripts/supreme-pipeline.sh
 
-# 2. Query your data with DuckDB
+# 2. Query your crypto data with DuckDB
 ./scripts/query-data.py
 
 # 3. Interactive SQL mode
 ./scripts/query-data.py --interactive
 ```
 
-That's it! The pipeline will auto-discover JSON files, stream them through Kafka, process them into Parquet format, and make them queryable via DuckDB.
+That's it! The pipeline will set up Kafka topics, start the RDE processing engine, and prepare everything for real-time Bitcoin market data and crypto news analytics.
 
 ## 📊 What It Does
 
-The RDE pipeline automatically:
+The RDE pipeline provides:
 
-1. **🔍 Auto-discovers** JSON datasets in `data/json-samples/`
-2. **📡 Creates Kafka topics** for each dataset
-3. **🔄 Streams data** from JSON → Kafka → RDE → MinIO
-4. **📦 Converts to Parquet** format in Iceberg table structure
-5. **📝 Generates SQL templates** for immediate analytics
-6. **🎯 Enables DuckDB queries** directly on S3/MinIO data
+1. **🔗 Real-time data ingestion** from blockchain.com and cryptopanic.com APIs
+2. **📡 Kafka streaming** for high-throughput message processing
+3. **🔄 Data transformation** with DataFusion SQL engine
+4. **📦 Iceberg storage** with ACID guarantees and schema evolution
+5. **📝 Analytics-ready data** for immediate querying with DuckDB
+6. **🎯 Real-time monitoring** of Bitcoin price and crypto news sentiment
 
 ## 🏗️ Architecture
 
 ```
-JSON Files → Kafka Topics → RDE Pipeline → MinIO (S3) → DuckDB Analytics
-    ✅           ✅              ⚠️             ✅         ✅
+Blockchain APIs → Kafka Topics → RDE Pipeline → MinIO (S3) → DuckDB Analytics
+     🔄              📡              ⚡             📦         🎯
 ```
 
-**Status**: End-to-end working system with a known Parquet writing bug in the RDE pipeline (see [RDE_STATUS.md](RDE_STATUS.md))
+**Status**: Infrastructure ready, API integrations pending implementation
 
 ### Components
 
@@ -45,41 +45,27 @@ JSON Files → Kafka Topics → RDE Pipeline → MinIO (S3) → DuckDB Analytics
 - **DuckDB**: Fast analytical SQL engine with S3 support
 - **Docker**: Containerized infrastructure
 
-## 📁 Project Structure (Simplified)
+## 📁 Project Structure
 
 ```
 rde/
 ├── scripts/
 │   ├── supreme-pipeline.sh     # 🚀 Main pipeline orchestrator
-│   └── query-data.py          # 🔍 DuckDB analytics tool
+│   └── query-data.py          # 🔍 Crypto data analytics tool
 ├── crates/                    # 🦀 Rust workspace
 │   ├── rde-core/             # Core pipeline logic
 │   ├── rde-io/               # Kafka/MinIO connectors
 │   └── rde-tx/               # Data transformations
 ├── examples/                  # 📋 Pipeline configurations
-├── sql/templates/            # 📝 Auto-generated SQL templates
-├── data/json-samples/        # 📂 Your JSON data goes here
+├── data/sources/             # 📂 Data source configurations
+│   ├── bitcoin/              # Bitcoin market data configs
+│   └── news/                 # Crypto news data configs
 └── docker-compose.yml        # 🐳 Infrastructure stack
 ```
 
 ## 🔧 Usage Guide
 
-### 1. Add Your Data
-
-Place JSON files in `data/json-samples/`. Supported formats:
-
-```bash
-# JSON Array format
-data/json-samples/retail.json     # [{"id": 1}, {"id": 2}]
-
-# NDJSON format
-data/json-samples/flights.json    # {"flight": "AA123"}\n{"flight": "BB456"}
-
-# Nested objects
-data/json-samples/spotify.json    # {"audio_features": [{"id": 1}, {"id": 2}]}
-```
-
-### 2. Run the Pipeline
+### 1. Start the Pipeline
 
 ```bash
 ./scripts/supreme-pipeline.sh
@@ -88,42 +74,63 @@ data/json-samples/spotify.json    # {"audio_features": [{"id": 1}, {"id": 2}]}
 This will:
 
 - Start Kafka, MinIO, and Zookeeper
-- Create topics for each JSON file
-- Stream data through the pipeline
-- Monitor progress and show completion status
+- Create topics for Bitcoin market data and crypto news
+- Start the RDE processing pipeline
+- Set up monitoring and analytics
 
-### 3. Query Your Data
+### 2. Query Your Data
 
 ```bash
-# Quick data exploration
+# Quick crypto data overview
 ./scripts/query-data.py
 
 # Interactive SQL mode
 ./scripts/query-data.py --interactive
+
+# Specific query
+./scripts/query-data.py --query "SELECT * FROM 's3://crypto-data/bitcoin_market_data/**/*.parquet' LIMIT 5"
 ```
 
-### 4. Example Queries
+### 3. Example Analytics Queries
 
-The system generates these automatically, but here are some examples:
+The system provides these analytics automatically:
 
 ```sql
--- Count records in a dataset
-SELECT COUNT(*) FROM 's3://retail/**/*.parquet';
-
--- Sample data preview
-SELECT * FROM 's3://flights/**/*.parquet' LIMIT 10;
-
--- Schema information
-DESCRIBE SELECT * FROM 's3://spotify/**/*.parquet';
-
--- Cross-dataset analysis
+-- Latest Bitcoin price and market data
 SELECT
-    'retail' as dataset, COUNT(*) as records
-FROM 's3://retail/**/*.parquet'
-UNION ALL
+    timestamp,
+    price,
+    volume_24h,
+    market_cap,
+    price_change_24h,
+    market_sentiment
+FROM 's3://crypto-data/bitcoin_market_data/**/*.parquet'
+ORDER BY timestamp DESC
+LIMIT 1;
+
+-- Crypto news sentiment analysis
 SELECT
-    'flights' as dataset, COUNT(*) as records
-FROM 's3://flights/**/*.parquet';
+    sentiment_category,
+    COUNT(*) as article_count,
+    AVG(sentiment_score) as avg_sentiment
+FROM 's3://crypto-data/crypto_news_data/**/*.parquet'
+WHERE published_at >= CURRENT_DATE - INTERVAL 7 DAY
+GROUP BY sentiment_category;
+
+-- Price vs News correlation
+WITH daily_metrics AS (
+    SELECT
+        DATE(b.timestamp) as date,
+        AVG(b.price) as avg_price,
+        COUNT(n.id) as news_count,
+        AVG(n.sentiment_score) as avg_sentiment
+    FROM 's3://crypto-data/bitcoin_market_data/**/*.parquet' b
+    LEFT JOIN 's3://crypto-data/crypto_news_data/**/*.parquet' n
+        ON DATE(b.timestamp) = DATE(n.published_at)
+    WHERE b.timestamp >= CURRENT_DATE - INTERVAL 30 DAY
+    GROUP BY DATE(b.timestamp)
+)
+SELECT * FROM daily_metrics WHERE news_count > 0;
 ```
 
 ## 🌐 Service Access
@@ -135,23 +142,27 @@ FROM 's3://flights/**/*.parquet';
 
 ## 🚦 Current Status
 
-### ✅ **Working Components**
+### ✅ **Ready Components**
 
-- Auto dataset discovery and Kafka topic creation
-- JSON data streaming and processing
-- MinIO storage integration
+- Infrastructure setup (Kafka, MinIO, Zookeeper)
+- RDE processing pipeline
+- Iceberg table management
 - DuckDB analytics with S3 connectivity
 - Interactive SQL queries
-- Auto-generated query templates
+- Real-time monitoring
 
-### ⚠️ **Known Issues**
+### 🔄 **Pending Implementation**
 
-- **RDE Pipeline Bug**: Parquet files may be written incorrectly for some datasets
-- **Schema Evolution**: Dynamic schema handling needs improvement
+- **API Integrations**: Bitcoin market data collector (blockchain.com)
+- **News Collector**: Crypto news data collector (cryptopanic.com)
+- **Data Ingestion**: Real-time streaming from external APIs
 
-### 🔄 **Workaround**
+### 📋 **Next Steps**
 
-The system works end-to-end. For datasets affected by the RDE bug, the pipeline will still run, and you can inspect the data structure in MinIO.
+1. **Implement API collectors** for real-time data ingestion
+2. **Set up monitoring** for pipeline health and data quality
+3. **Add alerting** for price movements and news sentiment
+4. **Scale infrastructure** for production workloads
 
 ## 🛠️ Development
 
@@ -164,14 +175,17 @@ The system works end-to-end. For datasets affected by the RDE bug, the pipeline 
 ### Build
 
 ```bash
-cargo build --release --bin rde-cli --bin kafka-producer
+cargo build --release --bin rde-cli
 ```
 
-### Add New Data Sources
+### API Integration Development
 
-1. Place JSON files in `data/json-samples/`
-2. Run `./scripts/supreme-pipeline.sh`
-3. Query with `./scripts/query-data.py`
+The pipeline is ready for real-time data. To add API integrations:
+
+1. **Bitcoin Market Data**: Implement collector for blockchain.com APIs
+2. **Crypto News**: Implement collector for cryptopanic.com APIs
+3. **Data Validation**: Add schema validation and data quality checks
+4. **Error Handling**: Implement retry logic and dead letter queues
 
 ### Custom Pipeline Configuration
 
@@ -179,12 +193,13 @@ Check `examples/` directory for sample YAML configurations.
 
 ## 🎯 Design Philosophy
 
-**Simple. Automated. Rust-powered.**
+**Real-time. Scalable. Rust-powered.**
 
-- **Zero Configuration**: Just drop JSON files and run
-- **Auto-Discovery**: Pipeline discovers and adapts to your data
-- **Performance**: Rust-based processing with minimal overhead
+- **Zero Latency**: Real-time processing from API to analytics
+- **High Throughput**: Rust-based processing with minimal overhead
+- **Schema Evolution**: Automatic handling of changing data structures
 - **Analytics-Ready**: Direct DuckDB querying without data movement
+- **Production-Ready**: ACID guarantees and fault tolerance
 
 ## 🆘 Troubleshooting
 
@@ -221,8 +236,45 @@ tail logs/*-pipeline.log
 # Run: SELECT 1; -- test basic DuckDB
 ```
 
+## 📈 Data Schema
+
+### Bitcoin Market Data
+
+```sql
+CREATE TABLE bitcoin_market_data (
+    timestamp TIMESTAMP,
+    price DOUBLE,
+    volume_24h DOUBLE,
+    market_cap DOUBLE,
+    price_change_24h DOUBLE,
+    market_sentiment VARCHAR,
+    ingestion_time TIMESTAMP,
+    partition_date DATE,
+    partition_hour INTEGER
+);
+```
+
+### Crypto News Data
+
+```sql
+CREATE TABLE crypto_news_data (
+    id VARCHAR,
+    title VARCHAR,
+    content TEXT,
+    source VARCHAR,
+    published_at TIMESTAMP,
+    sentiment_score DOUBLE,
+    keywords ARRAY<VARCHAR>,
+    sentiment_category VARCHAR,
+    source_category VARCHAR,
+    ingestion_time TIMESTAMP,
+    partition_date DATE,
+    partition_hour INTEGER
+);
+```
+
 ---
 
-**Ready to process your JSON data at scale?** 🚀
+**Ready to process real-time crypto data at scale?** 🚀
 
-Drop your files in `data/json-samples/` and run `./scripts/supreme-pipeline.sh`!
+Start the pipeline with `./scripts/supreme-pipeline.sh` and implement the API integrations for live data!

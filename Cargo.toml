@@ -14,16 +14,18 @@ members = [
     "crates/rde-tx",        # Transform operator implementations
     "bins/rde-cli",         # Main pipeline runner CLI
     "bins/kafka-producer",  # Data streaming utility
+    "bins/market-data",     # Bitcoin market data collector
+    "test_bitcoin_api",     # Bitcoin API test utility
 ]
 resolver = "2"
 
 [workspace.package]
 version = "2.0.0"
 edition = "2021"
-authors = ["RDE Team <team@rde-project.org>"]
+authors = ["Lyte Abovenyte <lyteabovenyte@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/lyteabovenyte/rde"
-homepage = "https://rde-project.org"
+homepage = "https://github.com/lyteabovenyte/rde"
 description = "High-performance real-time data engineering pipeline framework"
 keywords = ["data-engineering", "streaming", "arrow", "iceberg", "kafka"]
 categories = ["database", "data-structures", "command-line-utilities"]
@@ -40,13 +42,13 @@ serde_json = "1.0"
 async-trait = "0.1"
 
 # Apache Arrow ecosystem
-datafusion = "33.0"
-arrow = "50.0"
-parquet = "50.0"
+datafusion = "49.0"
+# Remove direct arrow dependency - use re-exported from datafusion
+parquet = "49.0"
 
 # Data lake and storage
 iceberg = "0.2"
-object_store = "0.8"
+object_store = { version = "0.8", features = ["aws"] }
 
 # Kafka integration
 rdkafka = { version = "0.36", features = ["tokio"] }
@@ -54,3 +56,28 @@ rdkafka = { version = "0.36", features = ["tokio"] }
 # CLI and configuration
 clap = { version = "4.4", features = ["derive"] }
 serde_yaml = "0.9"
+
+# HTTP client for API calls
+reqwest = { version = "0.11", features = ["json"] }
+
+
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Configuration management
+config = "0.13"
+
+# Metrics and monitoring
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Web framework for metrics server
+axum = "0.7"
+
+# Internal workspace dependencies
+rde-core = { path = "crates/rde-core" }
+rde-io = { path = "crates/rde-io" }

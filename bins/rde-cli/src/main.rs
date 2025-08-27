@@ -36,6 +36,8 @@
 //!
 //! See the `examples/` directory for sample pipeline configurations.
 
+#![allow(unused)]
+
 use anyhow::Result;
 use datafusion::arrow::datatypes::SchemaRef;
 use clap::Parser;

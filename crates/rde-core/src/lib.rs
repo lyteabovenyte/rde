@@ -28,6 +28,8 @@
 //! # }
 //! ```
 
+#![allow(unused)]
+
 use anyhow::Result;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;

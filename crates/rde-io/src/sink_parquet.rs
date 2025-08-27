@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use anyhow::Result;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::array::RecordBatch;

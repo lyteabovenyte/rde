@@ -40,6 +40,8 @@
 //! let source = KafkaPipelineSource::new(kafka_spec);
 //! ```
 
+#![allow(unused)]
+
 /// Parquet file sink implementation
 pub mod sink_parquet;
 

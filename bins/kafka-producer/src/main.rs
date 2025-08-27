@@ -55,6 +55,8 @@
 //! kafka-producer -i test.json -t test-topic -f json --dry-run
 //! ```
 
+#![allow(unused)]
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use glob::glob;

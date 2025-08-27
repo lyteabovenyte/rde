@@ -56,6 +56,8 @@
 //! WHERE user_id IS NOT NULL
 //! ```
 
+#![allow(unused)]
+
 use datafusion::arrow::array::{RecordBatch, StringArray, ArrayRef};
 use datafusion::arrow::datatypes::{SchemaRef, Schema, Field, DataType};
 use anyhow::Result;

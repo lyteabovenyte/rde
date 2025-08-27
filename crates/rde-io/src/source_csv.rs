@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use anyhow::{Context, Result};
 use datafusion::arrow::csv::reader::ReaderBuilder;
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
